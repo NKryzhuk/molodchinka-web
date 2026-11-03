@@ -289,6 +289,16 @@ textarea.input{resize:vertical;min-height:80px}
 .burst{position:fixed;inset:0;pointer-events:none;z-index:130;overflow:hidden}
 .burst span{position:absolute;left:50%;top:45%;font-size:34px;will-change:transform,opacity}
 
+/* голос + ШІ */
+.voice-btn{background:linear-gradient(135deg,var(--primary-soft),var(--surface-2));color:var(--primary);font-weight:700;margin-bottom:14px;border:1px dashed color-mix(in srgb,var(--primary) 40%,transparent)}
+.voice-wrap{display:flex;flex-direction:column;align-items:center;gap:10px;margin:14px 0 16px;text-align:center}
+.mic{width:88px;height:88px;border-radius:50%;background:var(--primary);color:#fff;font-size:38px;display:grid;place-items:center;box-shadow:0 6px 20px color-mix(in srgb,var(--primary) 35%,transparent)}
+.mic.on{animation:micpulse 1.2s ease-out infinite}
+@keyframes micpulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--primary) 55%,transparent)}100%{box-shadow:0 0 0 26px transparent}}
+.ai-load{display:flex;flex-direction:column;align-items:center;gap:16px;padding:28px 0;font-weight:700;text-align:center}
+.spinner{width:42px;height:42px;border-radius:50%;border:4px solid var(--primary-soft);border-top-color:var(--primary);animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
 /* інтерактивний тур */
 .tour{position:fixed;inset:0;z-index:300}
 .card,.themes,.segmented,.field,.two,.rv-item,.section-title,.sheet h3{scroll-margin-top:96px}
@@ -356,7 +366,7 @@ const STORE_KEY = 'achievement-tracker-v1';
 const NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
 const CP = NATIVE ? window.Capacitor.Plugins : {};
 let nativePerm='default';
-const APP_VERSION = '2.1.0';
+const APP_VERSION = '2.2.0';
 const COLORS = ['#4f46e5','#d9488a','#22915f','#c97a12','#0e8fd1','#8b3fd9','#dc3e44','#5b6475','#0f9b9b','#a0522d'];
 const EMOJIS = ['🌱','💼','💪','📚','🧘','❤️','💰','🏠','✈️','🎨','🎵','🍎','🏃','🧠','💻','📈','🎓','👨‍👩‍👧','🐾','🌍','⚽','🛠️','✍️','⭐'];
 const DEFAULT_CATS = [
@@ -897,6 +907,7 @@ function openGoalForm(id, after){
   const subRow=(s)=>`<div class="sub-row" data-sid="${esc(s?s.id:'')}" data-done="${s&&s.done?1:0}" data-doneat="${esc(s&&s.doneAt||'')}"><input class="input" value="${esc(s?s.title:'')}" placeholder="Крок" maxlength="200"><button type="button" class="icon-btn" data-a="rm-sub" aria-label="Прибрати">${ICONS.close}</button></div>`;
   const m=openModal(()=>`<div class="sheet-head"><h2>${g?'Редагувати задачу':'Нова задача'}</h2><button type="button" class="icon-btn" data-a="close" aria-label="Закрити">${ICONS.close}</button></div>
     <form data-f="goal" novalidate>
+      ${!g && AI_OK ? '<button type="button" class="btn voice-btn block" data-a="voice">🎤 Надиктувати задачу — ШІ заповнить усе сам</button>' : ''}
       <label class="field"><span>Назва *</span><input class="input" name="title" maxlength="140" value="${esc(g?g.title:'')}" placeholder="Напр.: Прочитати 12 книг" autocomplete="off"></label>
       <div class="err" data-err hidden>Введіть назву задачі</div>
       <label class="field"><span>Деталі задачі</span><textarea class="input" name="desc" maxlength="2000" placeholder="Що саме треба зробити, як зрозуміти, що задачу виконано…">${esc(g?g.desc:'')}</textarea></label>
@@ -915,6 +926,19 @@ function openGoalForm(id, after){
     </form>`);
   const form=$('form',m.sheet), sel=form.elements.cat; let prevCat=sel.value;
   const setTime=v=>{ form.elements.time.value=v; const tb=$('[data-a=pick-time]',m.sheet); $('[data-time-label]',tb).textContent=v||'Обрати час'; tb.classList.toggle('empty',!v); };
+  const setDate=v=>{ form.elements.deadline.value=v; const db=$('[data-a=pick-date]',m.sheet); $('[data-date-label]',db).textContent=v?fmtDate(v,true):'Обрати дату'; db.classList.toggle('empty',!v); if(!v) setTime(''); };
+  const fillFromAI=r=>{
+    const f=form.elements;
+    f.title.value=String(r.title||'').slice(0,140); if(r.desc) f.desc.value=String(r.desc).slice(0,2000);
+    if(r.categoryId && state.categories.some(c=>c.id===r.categoryId)){ f.cat.value=r.categoryId; prevCat=r.categoryId; }
+    const dOk=/^\d{4}-\d\d-\d\d$/.test(r.deadline||''); setDate(dOk?r.deadline:'');
+    if(dOk && /^\d\d:\d\d$/.test(r.time||'')) setTime(r.time);
+    if(PRIORITIES[r.priority]) f.priority.value=r.priority;
+    if(dOk && REMINDERS.some(x=>x[0]===r.reminder)) f.reminder.value=r.reminder;
+    const subs=(Array.isArray(r.subtasks)?r.subtasks:[]).map(x=>String(x).trim()).filter(Boolean);
+    if(subs.length){ const box=$('[data-subs]',m.sheet); $$('.sub-row',box).forEach(row=>{ if(!row.querySelector('input').value.trim()) row.remove(); }); subs.forEach(t=>{ box.insertAdjacentHTML('beforeend',subRow(null)); box.lastElementChild.querySelector('input').value=t.slice(0,200); }); }
+    $('[data-err]',m.sheet).hidden=true;
+  };
   sel.addEventListener('change',()=>{
     if(sel.value!=='__new'){ prevCat=sel.value; return; }
     sel.value=prevCat;
@@ -933,6 +957,7 @@ function openGoalForm(id, after){
         if(!v) setTime('');
       });
     }
+    if(b.dataset.a==='voice'){ voiceFillTask(fillFromAI); return; }
     if(b.dataset.a==='pick-time'){
       if(!form.elements.deadline.value){ toast('Спершу оберіть дату дедлайну'); return; }
       openTimePicker(form.elements.time.value, setTime);
@@ -1077,6 +1102,7 @@ async function openReview(){
     h+= list.length
       ? `<p class="small" style="margin:0 0 14px">Відміть задачі та кроки, які вдалося зробити, і натисни «Підтвердити». До будь-якої задачі можна одразу додати новий крок. Тут ${list.length} ${plural(list.length,['найближча задача','найближчі задачі','найближчих задач'])} за дедлайном.</p>`
       : `<p class="small" style="margin:0 0 14px">Активних задач немає 🌿 Але нижче можна записати, що ${G3('ти зробив','ти зробила','вдалося зробити')} сьогодні.</p>`;
+    if(AI_OK) h+=`<button class="btn voice-btn block" data-a="voice" style="margin-bottom:14px">🎤 Розкажи голосом — ШІ сам відмітить зроблене</button>`;
     for(const g of list){
       const c=cat(g.categoryId);
       const meta=`${esc(c.emoji)} ${esc(c.name)}${g.deadline?' · 📅 '+fmtShort(parseYmd(g.deadline))+(g.time?' '+g.time:''):''}`;
@@ -1151,6 +1177,7 @@ async function openReview(){
     const b=e.target.closest('[data-a]'); if(!b) return; const a=b.dataset.a;
     if(a==='close') return m.close();
     if(a==='expand'){ const id=b.dataset.id; open.has(id)?open.delete(id):open.add(id); m.render(); return; }
+    if(a==='voice'){ voiceReview({list, sel, pending, rows, open, render:()=>m.render()}); return; }
     if(a==='open-add'){ const id=b.dataset.id; open.has(id)?open.delete(id):open.add(id); m.render(); const nf=$(`[data-addstep="${CSS.escape(id)}"] input`, m.sheet); nf&&nf.focus(); return; }
     if(a==='pick'){ const k=b.dataset.k; sel.has(k)?sel.delete(k):sel.add(k); m.render(); return; }
     if(a==='rm-step'){ const gid=b.dataset.g; pending[gid]=(pending[gid]||[]).filter(p=>p.id!==b.dataset.s); sel.delete('s|'+gid+'|'+b.dataset.s); if(!pending[gid].length) delete pending[gid]; m.render(); return; }
@@ -1216,6 +1243,7 @@ let tourActive=false;
 const TOUR=[
   {center:true, t:'Привіт! 👋', x:'Проведу тебе застосунком і покажу, де що знаходиться. Це займе хвилинку. Гортай кнопкою «Далі».'},
   {view:'goals', sel:'#fab', t:'➕ Нова задача', x:'Натисни «+», щоб створити задачу. Зараз покажу, що там усередині.'},
+  {ctx:'form', sel:'[data-a=voice]', t:'🎤 Голосом', x:'Розкажи про задачу своїми словами, і ШІ сам заповнить назву, категорію, дедлайн, пріоритет і кроки. Тобі лишиться тільки перевірити.'},
   {ctx:'form', sel:'[name=title]', up:'.field', also:[['[name=cat]','.field']], t:'✏️ Про що задача', x:'Назва — єдине обов’язкове поле. Додай деталі й обери категорію, якщо хочеш.'},
   {ctx:'form', sel:'[data-a=pick-date]', up:'.two', also:[['[name=priority]','.two'],['[data-subs]','.field']], t:'📅 Дедлайн, нагадування й кроки', x:'Дата обирається в календарі, а час — на циферблаті. Застосунок нагадає про дедлайн, а велику задачу можна розбити на маленькі кроки.'},
   {view:'goals', sel:'.segmented', also:[['.chips']], t:'🗂️ Фільтри', x:'Перемикай активні, виконані й архів, а кнопками нижче показуй лише одну категорію. Власні категорії створюються в Налаштуваннях.'},
@@ -1224,6 +1252,7 @@ const TOUR=[
   {ctx:'detail', sel:'.subs', also:[['[data-f=add-sub]']], t:'✅ Кроки', x:'Відмічай зроблені кроки квадратиком і додавай нові будь-коли.'},
   {ctx:'detail', sel:'.btn.success[data-a=complete]', t:'✅ Завершити задачу', x:'Натисни, коли все готово. Застосунок нагадає тобі, що твої досягнення заслуговують на визнання 💛'},
   {view:'goals', sel:'#bell', pad:6, t:'🔔 Дзвіночок', x:'Тут усі сповіщення. Щовечора о 21:00 приходить нагадування підбити підсумок дня.'},
+  {ctx:'review', sel:'[data-a=voice]', t:'🎤 Розкажи голосом', x:'Просто розкажи, як минув день, і ШІ сам відмітить виконані задачі й кроки, а нові справи додасть окремо.'},
   {ctx:'review', sel:'.rv-item', t:'📝 Підсумок дня', x:'Відміть, що вдалося зробити сьогодні. Задачі розгортаються стрілочкою, і сюди ж можна одразу додати новий крок.'},
   {ctx:'review', sel:'.nt-row', t:'🆕 Ще щось зроблено?', x:'Запиши справи, яких не було в списку: назва й категорія.'},
   {ctx:'review', sel:'.rv-foot', t:'Підтвердити або відпочити', x:'Підтверди виконане, і застосунок нагадає тобі, що твої досягнення заслуговують на визнання. А якщо сьогодні був відпочинок, натисни 🌿, бо це теж добре.'},
@@ -1357,6 +1386,8 @@ function tutorialSlides(){
       li:[['📝','Щоденний підсумок відкриває екран відмітки зробленого'],['⏰','Нагадування відкриває саму задачу'],['🔢','Цифра показує, скільки непрочитаних']]},
     {e:'🏆', t:'Досягнення', l:'Вкладка, де видно, скільки всього вже зроблено.',
       li:[['📊','Графік виконаних задач по днях, тижнях і місяцях'],['🗂️','Прогрес за категоріями'],['🏅','12 нагород, які відкриваються самі'],['🌟','Стрічка всіх виконаних задач']]},
+    {e:'🎤', t:'Голос і ШІ', l:'Не хочеш друкувати — просто розкажи.',
+      li:[['➕','У вікні «Нова задача» натисни «🎤 Надиктувати задачу» — ШІ сам розбере назву, категорію, дедлайн, пріоритет і кроки'],['📝','У підсумку дня розкажи, як минув день, — ШІ відмітить зроблене'],['👀','Ти завжди бачиш результат і можеш його виправити перед збереженням'],['🌐','Для ШІ потрібен інтернет']]},
     {e:'☁️', t:'Синхронізація', l:'Користуйся застосунком на кількох пристроях одночасно.',
       li:[['🔐','Створи акаунт з поштою й паролем у Налаштуваннях'],['📱','Увійди з тим самим акаунтом на телефоні, планшеті чи в браузері'],['🔄','Зміни з’являються на всіх пристроях за кілька секунд'],['📴','Без інтернету все працює, а зміни надішлються пізніше']]},
     {e:'⚙️', t:'Налаштування', l:'Зроби застосунок своїм.',
@@ -1676,7 +1707,7 @@ function fbErr(e){
 function syncInit(){
   if(!SYNC_OK) return;
   try{
-    const F=FB; const app=F.initializeApp(FB_CONFIG);
+    const F=FB; const app=F.initializeApp(FB_CONFIG); sync.app=app;
     sync.auth=F.initializeAuth(app,{persistence:[F.indexedDBLocalPersistence, F.browserLocalPersistence]});
     try{ sync.auth.languageCode='uk'; }catch(e){}   // листи Firebase (скидання пароля) — українською
     try{ sync.db=F.initializeFirestore(app,{localCache:F.persistentLocalCache({tabManager:F.persistentMultipleTabManager()})}); }
@@ -1841,6 +1872,146 @@ function syncCardHTML(){
     <div class="btn-row"><button class="btn primary" data-action="auth" data-v="login">Увійти</button><button class="btn" data-action="auth" data-v="register">Створити акаунт</button></div></div>`;
   return h+`<div class="list-item" style="padding-top:0"><div class="emoji-box" style="--c:#4f46e5">👤</div><div class="grow"><div style="font-weight:600;word-break:break-all">${esc(sync.user.email||'')}</div><div class="small" id="syncStatus">${syncStatusText()}</div></div></div>
     <button class="btn block" data-action="logout">Вийти з акаунта</button></div>`;
+}
+
+/* ========== 🎤 Голос + ✨ ШІ (Firebase AI Logic / Gemini) ========== */
+const AI_MODELS=['gemini-2.5-flash','gemini-2.5-flash-lite'];
+const AI_OK = !!(window.FB && FB.getAI) && typeof DEMO_SEED!=='function';
+const SpeechWeb = window.SpeechRecognition || window.webkitSpeechRecognition;
+const speechNative = ()=> NATIVE && !!(CP && CP.SpeechRecognition);
+const speechOK = ()=> speechNative() || (!NATIVE && !!SpeechWeb);
+const aiCache={};
+function aiModel(i){
+  if(!sync.app) throw new Error('no-app');
+  if(!aiCache[i]){ const ai=FB.getAI(sync.app,{backend:new FB.GoogleAIBackend()});
+    aiCache[i]=FB.getGenerativeModel(ai,{model:AI_MODELS[i], generationConfig:{responseMimeType:'application/json', temperature:0.2}}); }
+  return aiCache[i];
+}
+async function aiJSON(prompt){
+  let last;
+  for(let i=0;i<AI_MODELS.length;i++){
+    try{ const r=await aiModel(i).generateContent(prompt); const t=r.response.text().replace(/^\s*```(json)?/i,'').replace(/```\s*$/,'').trim(); return JSON.parse(t); }
+    catch(e){ last=e; if(!/not.?found|404|unsupported|is not available/i.test(String(e&&e.message))) break; }
+  }
+  throw last;
+}
+function aiErr(e){
+  const m=String(e&&e.message||e);
+  if(!navigator.onLine || /network|failed to fetch/i.test(m)) return 'Немає інтернету — без нього ШІ не працює.';
+  if(/api-not-enabled|has not been used|PERMISSION_DENIED|SERVICE_DISABLED|403/i.test(m)) return 'ШІ ще не ввімкнено у Firebase. Відкрий AI services → AI Logic → Gemini Developer API.';
+  if(/quota|429|RESOURCE_EXHAUSTED/i.test(m)) return 'Вичерпано безкоштовний ліміт ШІ. Спробуй трохи пізніше.';
+  return 'ШІ не зміг розібрати. Спробуй сказати трохи інакше.';
+}
+function todayCtx(){ const d=new Date(); return `Сьогодні ${ymd(d)} (${d.toLocaleDateString('uk-UA',{weekday:'long'})}), зараз ${pad(d.getHours())}:${pad(d.getMinutes())}, часовий пояс Europe/Kyiv.`; }
+async function withLoading(p, label='✨ ШІ розбирає твої слова…'){
+  const m=openModal(()=>`<div class="ai-load"><div class="spinner"></div><div>${label}</div></div>`,{dialog:true});
+  try{ return await p; } finally{ m.close(); }
+}
+const aiFail=e=>dialog({title:'Не вийшло 😔', text:esc(aiErr(e)), buttons:[{label:'Зрозуміло',value:1,kind:'primary'}]});
+
+/* Вікно запису голосу. Повертає текст (його можна виправити руками) або null */
+function voiceCapture({title, hint, placeholder}){
+  return new Promise(res=>{
+    let result=null, listening=false, rec=null, handles=[], base='';
+    const canSpeak=speechOK();
+    const m=openModal(()=>`<div class="sheet-head"><h2>${title}</h2><button class="icon-btn" data-a="close" aria-label="Закрити">${ICONS.close}</button></div>
+      <p class="small" style="margin:0 0 6px">${hint}</p>
+      ${canSpeak?`<div class="voice-wrap"><button class="mic" data-a="mic" aria-label="Мікрофон">🎤</button><div class="small" id="vstat">Натисни на мікрофон і говори</div></div>`:'<div class="small" style="margin:8px 0">Голосове введення недоступне на цьому пристрої — напиши своїми словами.</div>'}
+      <textarea class="input" id="vtext" rows="4" placeholder="${esc(placeholder)}"></textarea>
+      <div class="btn-row" style="margin-top:12px"><button class="btn primary" data-a="go">✨ Розібрати</button><button class="btn" data-a="close">Скасувати</button></div>`,
+      {onClose:()=>{ stop(); res(result); }});
+    const ta=$('#vtext',m.sheet), st=$('#vstat',m.sheet), mic=$('[data-a=mic]',m.sheet);
+    const setL=on=>{ listening=on; if(mic) mic.classList.toggle('on',on); if(st) st.textContent=on?'Слухаю… говори 🙂 (натисни ще раз, щоб зупинити)':'Натисни на мікрофон і говори'; };
+    const show=t=>{ ta.value=(base?base+' ':'')+t; };
+    async function start(){
+      base=ta.value.trim();
+      try{
+        if(speechNative()){
+          const SR=CP.SpeechRecognition;
+          const p=await SR.requestPermissions(); if(p && p.speechRecognition && p.speechRecognition!=='granted'){ toast('Дозволь доступ до мікрофона в налаштуваннях'); return; }
+          handles.push(await SR.addListener('partialResults', d=>{ if(d&&d.matches&&d.matches[0]) show(d.matches[0]); }));
+          handles.push(await SR.addListener('listeningState', s=>{ if(s&&s.status==='stopped') setL(false); }));
+          setL(true);
+          await SR.start({language:'uk-UA', maxResults:1, partialResults:true, popup:false});
+        } else {
+          rec=new SpeechWeb(); rec.lang='uk-UA'; rec.interimResults=true; rec.continuous=true;
+          rec.onresult=ev=>{ let t=''; for(const r of ev.results) t+=r[0].transcript; show(t.trim()); };
+          rec.onend=()=>setL(false); rec.onerror=ev=>{ setL(false); if(ev.error==='not-allowed') toast('Дозволь доступ до мікрофона'); };
+          rec.start(); setL(true);
+        }
+      }catch(e){ setL(false); toast('Не вдалося ввімкнути мікрофон'); }
+    }
+    function stop(){
+      try{ if(speechNative()) CP.SpeechRecognition.stop(); else if(rec) rec.stop(); }catch(e){}
+      handles.splice(0).forEach(h=>{ try{ h.remove(); }catch(e){} }); setL(false);
+    }
+    m.sheet.addEventListener('click',e=>{
+      const b=e.target.closest('[data-a]'); if(!b) return;
+      if(b.dataset.a==='close') return m.close();
+      if(b.dataset.a==='mic'){ listening?stop():start(); return; }
+      if(b.dataset.a==='go'){ const t=ta.value.trim(); if(!t){ toast('Скажи або напиши кілька слів'); return; } result=t; m.close(); }
+    });
+    if(canSpeak) setTimeout(start, 350);
+  });
+}
+
+/* Нова задача голосом */
+async function voiceFillTask(fill){
+  const text=await voiceCapture({title:'🎤 Розкажи про задачу',
+    hint:'Говори як зручно, наприклад: «Завтра о шостій вечора подзвонити в банк щодо кредиту, це по роботі, важливо. Спершу знайти договір».',
+    placeholder:'Тут з’явиться те, що ти скажеш. Можна й написати.'});
+  if(!text) return;
+  const cats=state.categories.map(c=>({id:c.id, name:c.name}));
+  const prompt=`Ти — помічник у застосунку-трекері задач. ${todayCtx()}
+Користувач продиктував українською нову задачу: """${text}"""
+Категорії користувача: ${JSON.stringify(cats)}
+Поверни ЛИШЕ JSON-об'єкт:
+{"title": "коротка назва задачі з великої літери — сама дія, без дати, часу, категорії й пріоритету",
+ "desc": "додаткові деталі, якщо вони є, інакше порожній рядок",
+ "categoryId": "id найвідповіднішої категорії з наданого списку, або порожній рядок, якщо незрозуміло",
+ "deadline": "YYYY-MM-DD або порожній рядок (обчислюй відносні дати: сьогодні, завтра, післязавтра, у п'ятницю — найближча майбутня, через тиждень, до кінця місяця)",
+ "time": "HH:MM у 24-годинному форматі або порожній рядок (\\"о шостій вечора\\" = 18:00, \\"зранку\\" = 09:00)",
+ "priority": "high, якщо важливо/терміново/обов'язково; low, якщо не горить/колись; інакше med",
+ "reminder": "одне з: none, 0, 1h, 1d, 3d, 1w — якщо користувач просив нагадати; інакше порожній рядок",
+ "subtasks": ["кроки, якщо користувач перелічив етапи; інакше порожній масив"]}`;
+  let r; try{ r=await withLoading(aiJSON(prompt)); }catch(e){ return aiFail(e); }
+  if(!r || !r.title){ return aiFail(new Error('empty')); }
+  fill(r); toast('✨ Заповнено — перевір і натисни «Створити задачу»');
+}
+
+/* Підсумок дня голосом */
+async function voiceReview(ctx){
+  const text=await voiceCapture({title:'🎤 Розкажи, що зроблено',
+    hint:`Просто розкажи про свій день, наприклад: «${G3('Зробив','Зробила','Зроблено')} слайди для презентації, ${G3('подзвонив','подзвонила','дзвінок')} в банк, а ще ${G3('сходив','сходила','похід')} у спортзал».`,
+    placeholder:'Тут з’явиться те, що ти скажеш. Можна й написати.'});
+  if(!text) return;
+  const tasks=ctx.list.map(g=>({id:g.id, title:g.title, steps:[...g.subtasks, ...(ctx.pending[g.id]||[])].map(s=>({id:s.id, title:s.title, done:!!s.done}))}));
+  const cats=state.categories.map(c=>({id:c.id, name:c.name}));
+  const prompt=`Ти — помічник у застосунку-трекері задач. ${todayCtx()}
+Користувач розповідає українською, що зробив сьогодні: """${text}"""
+Його активні задачі з кроками: ${JSON.stringify(tasks)}
+Категорії: ${JSON.stringify(cats)}
+Зістав розповідь із задачами за змістом (не лише за точними словами). Правила:
+- doneTaskIds: задачі БЕЗ кроків, які користувач виконав; або задачі з кроками, якщо він прямо каже, що завершив задачу повністю.
+- doneSteps: існуючі невиконані кроки, які він зробив.
+- newSteps: якщо він зробив частину існуючої задачі, якої немає серед кроків, — новий крок до цієї задачі (done: true).
+- newTasks: справи, що не стосуються жодної задачі (title — коротко, з великої літери; categoryId — з наданих або порожній рядок; done: true).
+- Нічого не вигадуй: лише те, що прозвучало.
+Поверни ЛИШЕ JSON: {"doneTaskIds":[], "doneSteps":[{"taskId":"","stepId":""}], "newSteps":[{"taskId":"","title":"","done":true}], "newTasks":[{"title":"","categoryId":"","done":true}], "summary":"одне коротке речення українською: що ти відмітив"}`;
+  let r; try{ r=await withLoading(aiJSON(prompt)); }catch(e){ return aiFail(e); }
+  const ids=new Set(ctx.list.map(g=>g.id)); let n=0;
+  for(const id of (r.doneTaskIds||[])){ if(!ids.has(id)) continue; const g=goalById(id); const all=[...g.subtasks, ...(ctx.pending[id]||[])];
+    if(!all.length){ ctx.sel.add('g|'+id); n++; } else { for(const s of all) if(!s.done){ ctx.sel.add('s|'+id+'|'+s.id); n++; } ctx.open.add(id); } }
+  for(const d of (r.doneSteps||[])){ if(!ids.has(d.taskId)) continue; const g=goalById(d.taskId);
+    const s=[...g.subtasks, ...(ctx.pending[d.taskId]||[])].find(x=>x.id===d.stepId); if(s && !s.done){ ctx.sel.add('s|'+d.taskId+'|'+s.id); ctx.open.add(d.taskId); n++; } }
+  for(const ns of (r.newSteps||[])){ if(!ids.has(ns.taskId) || !ns.title) continue; const st={id:uid(), title:String(ns.title).slice(0,200)};
+    (ctx.pending[ns.taskId]=ctx.pending[ns.taskId]||[]).push(st); ctx.sel.delete('g|'+ns.taskId); if(ns.done!==false){ ctx.sel.add('s|'+ns.taskId+'|'+st.id); n++; } ctx.open.add(ns.taskId); }
+  const nt=(r.newTasks||[]).filter(t=>t&&t.title);
+  if(nt.length){ for(let i=ctx.rows.length-1;i>=0;i--) if(!ctx.rows[i].text.trim()) ctx.rows.splice(i,1);
+    for(const t of nt){ ctx.rows.push({id:uid(), text:String(t.title).slice(0,140), cat:state.categories.some(c=>c.id===t.categoryId)?t.categoryId:((state.categories[0]||{}).id||''), done:t.done!==false}); n++; } }
+  ctx.render();
+  if(n) toast('✨ '+(r.summary||'Відмічено')+' — перевір і натисни «Підтвердити»');
+  else dialog({title:'Нічого не знайшлося 🤔', text:'ШІ не зміг зіставити розповідь із задачами. Спробуй розповісти трохи детальніше або відміть вручну.', buttons:[{label:'Добре',value:1,kind:'primary'}]});
 }
 
 /* ========== Старт ========== */
