@@ -366,7 +366,7 @@ const STORE_KEY = 'achievement-tracker-v1';
 const NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
 const CP = NATIVE ? window.Capacitor.Plugins : {};
 let nativePerm='default';
-const APP_VERSION = '2.2.0';
+const APP_VERSION = '2.2.1';
 const COLORS = ['#4f46e5','#d9488a','#22915f','#c97a12','#0e8fd1','#8b3fd9','#dc3e44','#5b6475','#0f9b9b','#a0522d'];
 const EMOJIS = ['🌱','💼','💪','📚','🧘','❤️','💰','🏠','✈️','🎨','🎵','🍎','🏃','🧠','💻','📈','🎓','👨‍👩‍👧','🐾','🌍','⚽','🛠️','✍️','⭐'];
 const DEFAULT_CATS = [
@@ -1875,7 +1875,8 @@ function syncCardHTML(){
 }
 
 /* ========== 🎤 Голос + ✨ ШІ (Firebase AI Logic / Gemini) ========== */
-const AI_MODELS=['gemini-2.5-flash','gemini-2.5-flash-lite'];
+const AI_MODELS=['gemini-2.5-flash','gemini-2.5-flash-lite','gemini-3-flash-preview','gemini-flash-latest'];
+let aiLastErr='';
 const AI_OK = !!(window.FB && FB.getAI) && typeof DEMO_SEED!=='function';
 const SpeechWeb = window.SpeechRecognition || window.webkitSpeechRecognition;
 const speechNative = ()=> NATIVE && !!(CP && CP.SpeechRecognition);
@@ -1890,14 +1891,20 @@ function aiModel(i){
 async function aiJSON(prompt){
   let last;
   for(let i=0;i<AI_MODELS.length;i++){
-    try{ const r=await aiModel(i).generateContent(prompt); const t=r.response.text().replace(/^\s*```(json)?/i,'').replace(/```\s*$/,'').trim(); return JSON.parse(t); }
-    catch(e){ last=e; if(!/not.?found|404|unsupported|is not available/i.test(String(e&&e.message))) break; }
+    try{
+      const r=await aiModel(i).generateContent(prompt);
+      const t=r.response.text(); const a=t.indexOf('{'), b=t.lastIndexOf('}');
+      if(a<0||b<a) throw new Error('bad-json: '+t.slice(0,120));
+      return JSON.parse(t.slice(a,b+1));
+    }catch(e){ last=e; aiLastErr=`[${AI_MODELS[i]}] `+String((e&&(e.code||''))+' '+(e&&e.message||e)).slice(0,300); console.log('AI error', aiLastErr);
+      if(!navigator.onLine || /quota|429|RESOURCE_EXHAUSTED/i.test(String(e&&e.message))) break; }
   }
   throw last;
 }
 function aiErr(e){
   const m=String(e&&e.message||e);
   if(!navigator.onLine || /network|failed to fetch/i.test(m)) return 'Немає інтернету — без нього ШІ не працює.';
+  if(/no-app/.test(m)) return 'ШІ ще не запустився. Закрий і знову відкрий застосунок.';
   if(/api-not-enabled|has not been used|PERMISSION_DENIED|SERVICE_DISABLED|403/i.test(m)) return 'ШІ ще не ввімкнено у Firebase. Відкрий AI services → AI Logic → Gemini Developer API.';
   if(/quota|429|RESOURCE_EXHAUSTED/i.test(m)) return 'Вичерпано безкоштовний ліміт ШІ. Спробуй трохи пізніше.';
   return 'ШІ не зміг розібрати. Спробуй сказати трохи інакше.';
@@ -1907,7 +1914,7 @@ async function withLoading(p, label='✨ ШІ розбирає твої слов
   const m=openModal(()=>`<div class="ai-load"><div class="spinner"></div><div>${label}</div></div>`,{dialog:true});
   try{ return await p; } finally{ m.close(); }
 }
-const aiFail=e=>dialog({title:'Не вийшло 😔', text:esc(aiErr(e)), buttons:[{label:'Зрозуміло',value:1,kind:'primary'}]});
+const aiFail=e=>dialog({title:'Не вийшло 😔', text:esc(aiErr(e))+`<br><br><span style="font-size:11px;opacity:.7;word-break:break-all">Технічні деталі: ${esc(aiLastErr||String(e&&e.message||e))}</span>`, buttons:[{label:'Зрозуміло',value:1,kind:'primary'}]});
 
 /* Вікно запису голосу. Повертає текст (його можна виправити руками) або null */
 function voiceCapture({title, hint, placeholder}){
