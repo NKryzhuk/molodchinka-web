@@ -1,0 +1,1884 @@
+<!DOCTYPE html>
+<html lang="uk" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Трекер досягнень</title>
+<meta name="theme-color" content="#f6f7fb">
+<meta name="description" content="Трекер особистих і робочих задач та досягнень">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<style>
+:root{
+  --radius:16px;--radius-sm:10px;
+  --font:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans",sans-serif;
+}
+[data-theme="light"]{
+  --bg:#f5f6fa;--surface:#ffffff;--surface-2:#f0f1f6;--text:#1b1c22;--muted:#6a6e7b;--border:#e4e6ee;
+  --primary:#4f46e5;--primary-soft:#ecebff;--on-primary:#fff;
+  --danger:#dc3e44;--danger-soft:#fdecec;--success:#22915f;--success-soft:#e3f5ec;--warn:#c97a12;--warn-soft:#fdf2e1;--prio-med:#eab308;
+  --shadow:0 1px 2px rgba(20,20,40,.06),0 4px 14px rgba(20,20,40,.06);
+}
+[data-theme="dark"]{
+  --bg:#111217;--surface:#1b1c23;--surface-2:#24252e;--text:#ecedf2;--muted:#9a9eab;--border:#2d2f39;
+  --primary:#8f89ff;--primary-soft:#2a2950;--on-primary:#12121a;
+  --danger:#ff6b70;--danger-soft:#3a1f22;--success:#4cc68d;--success-soft:#173226;--warn:#f0b057;--warn-soft:#3a2c17;--prio-med:#facc15;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 18px rgba(0,0,0,.25);
+}
+[data-theme="pink"]{
+  --bg:#fff4f8;--surface:#ffffff;--surface-2:#fde9f1;--text:#3b1f2e;--muted:#8d6a7c;--border:#f5d8e4;
+  --primary:#d9488a;--primary-soft:#fde3ef;--on-primary:#fff;
+  --danger:#d23b4a;--danger-soft:#fdeaec;--success:#2a9467;--success-soft:#e3f5ec;--warn:#c47614;--warn-soft:#fdf1e0;--prio-med:#eab308;
+  --shadow:0 1px 2px rgba(120,30,70,.06),0 4px 14px rgba(120,30,70,.08);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font);font-size:16px;line-height:1.4}
+body{min-height:100dvh;padding-bottom:calc(76px + env(safe-area-inset-bottom))}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none;padding:0}
+.wrap{max-width:980px;margin:0 auto;padding:0 16px}
+.topbar{position:sticky;top:0;z-index:5;background:var(--bg);padding:calc(14px + env(safe-area-inset-top)) 0 10px}
+.topbar h1{margin:0;font-size:26px;letter-spacing:-.02em}
+.topbar .sub{color:var(--muted);font-size:14px;margin-top:2px}
+
+/* tab bar */
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:10;background:var(--surface);border-top:1px solid var(--border);display:flex;justify-content:center;padding-bottom:env(safe-area-inset-bottom)}
+.tabbar .inner{display:flex;width:100%;max-width:520px}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 0 10px;color:var(--muted);font-size:12px;font-weight:600}
+.tab svg{width:24px;height:24px}
+.tab.active{color:var(--primary)}
+.fab{position:fixed;right:max(18px,calc(50% - 470px));bottom:calc(90px + env(safe-area-inset-bottom));z-index:11;width:58px;height:58px;border-radius:18px;background:var(--primary);color:var(--on-primary);box-shadow:0 6px 20px color-mix(in srgb,var(--primary) 40%,transparent);display:grid;place-items:center}
+.fab svg{width:28px;height:28px}
+.fab[hidden]{display:none}
+
+/* controls */
+.segmented{display:flex;background:var(--surface-2);border-radius:12px;padding:4px;gap:4px;margin:6px 0 12px}
+.segmented button{flex:1;padding:8px 6px;border-radius:9px;font-weight:600;font-size:14px;color:var(--muted)}
+.segmented button.on{background:var(--surface);color:var(--text);box-shadow:var(--shadow)}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:2px 0 12px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;padding:7px 13px;border-radius:999px;background:var(--surface);border:1px solid var(--border);font-size:14px;font-weight:600;white-space:nowrap}
+.chip.on{background:var(--primary);border-color:var(--primary);color:var(--on-primary)}
+
+/* cards */
+.grid{display:grid;gap:12px;grid-template-columns:1fr}
+@media(min-width:700px){.grid{grid-template-columns:1fr 1fr}}
+@media(min-width:1000px){.grid{grid-template-columns:1fr 1fr 1fr}}
+.card{background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 16px;border:1px solid var(--border)}
+.goal-card{text-align:left;width:100%;display:flex;flex-direction:column;gap:9px;transition:transform .12s}
+.goal-card:active{transform:scale(.985)}
+.goal-card .row{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.goal-card h3{margin:0;font-size:17px;line-height:1.3;word-break:break-word}
+.goal-card.done h3{color:var(--muted)}
+.cat-pill{display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:600;color:var(--c);background:color-mix(in srgb,var(--c) 13%,transparent);padding:3px 9px;border-radius:999px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:12.5px;font-weight:600;padding:3px 8px;border-radius:999px;background:var(--surface-2);color:var(--muted);white-space:nowrap}
+.badge.danger{background:var(--danger-soft);color:var(--danger)}
+.badge.warn{background:var(--warn-soft);color:var(--warn)}
+.badge.ok{background:var(--success-soft);color:var(--success)}
+.prio{width:10px;height:10px;border-radius:50%;flex:none}
+.prio.high{background:var(--danger)}.prio.med{background:var(--prio-med)}.prio.low{background:var(--border)}
+.badge.resched{background:var(--primary-soft);color:var(--primary);cursor:pointer;font-size:12.5px}
+.letter{background:var(--primary-soft);border-radius:16px;padding:14px 16px;margin:6px 0 16px;text-align:center}
+.letter .lh{font-size:13px;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.05em}
+.letter p{margin:6px 0 0;font-size:19px;font-weight:700;line-height:1.35;word-break:break-word}
+.rest-btn{margin-top:8px}
+.badge.alert{width:24px;height:24px;padding:0;justify-content:center;font-weight:900;font-size:14px;background:var(--danger);color:#fff}
+
+/* календар */
+.date-btn{text-align:left;display:flex;align-items:center;gap:8px;cursor:pointer}
+.date-btn.empty{color:var(--muted)}
+.cal-head{display:flex;align-items:center;justify-content:space-between;margin:4px 0 10px}
+.cal-head b{font-size:18px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
+.cal-grid .wd{font-size:12px;font-weight:700;color:var(--muted);padding:4px 0}
+.cal-grid button{aspect-ratio:1;border-radius:12px;font-weight:600;font-size:15px;max-height:48px}
+.cal-grid button:hover{background:var(--surface-2)}
+.cal-grid button.past{color:var(--muted);opacity:.6}
+.cal-grid button.today{box-shadow:inset 0 0 0 2px var(--primary);color:var(--primary)}
+.cal-grid button.sel{background:var(--primary);color:var(--on-primary);opacity:1}
+.cal-quick{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 10px}
+.cal-quick .chip{cursor:pointer}
+
+/* годинник */
+.clock-display{display:flex;justify-content:center;align-items:center;gap:4px;font-size:44px;font-weight:800;margin:4px 0 12px}
+.clock-display button{padding:2px 12px;border-radius:14px;background:var(--surface-2);color:var(--muted);font-size:44px;font-weight:800}
+.clock-display button.on{background:var(--primary-soft);color:var(--primary)}
+.dial{position:relative;width:260px;height:260px;border-radius:50%;background:var(--surface-2);margin:0 auto}
+.dial .n{position:absolute;width:40px;height:40px;margin:-20px 0 0 -20px;border-radius:50%;display:grid;place-items:center;font-weight:600;font-size:15px;z-index:2}
+.dial .n.inner{font-size:13px;color:var(--muted);width:34px;height:34px;margin:-17px 0 0 -17px}
+.dial .n.sel{background:var(--primary);color:var(--on-primary)}
+.dial .hand{position:absolute;left:50%;bottom:50%;width:2px;margin-left:-1px;background:var(--primary);transform-origin:bottom center;z-index:1}
+.dial .dot{position:absolute;left:50%;top:50%;width:8px;height:8px;margin:-4px 0 0 -4px;border-radius:50%;background:var(--primary)}
+
+/* святковий екран */
+.celebrate .sheet{text-align:center;max-width:460px}
+.celebrate .pic{width:100%;max-height:48dvh;object-fit:cover;border-radius:18px;display:block;margin:4px 0 16px}
+.celebrate .hero{font-size:84px;line-height:1;margin:16px 0 8px}
+.celebrate h2{font-size:28px;margin:0 0 6px}
+.celebrate .gname{font-size:18px;font-weight:700;margin:8px 0 4px;word-break:break-word}
+.pics{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px}
+.pics .p{position:relative;aspect-ratio:1;border-radius:14px;overflow:hidden;background:var(--surface-2)}
+.pics .p img{width:100%;height:100%;object-fit:cover;display:block}
+.pics .p button{position:absolute;top:6px;right:6px;width:30px;height:30px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;display:grid;place-items:center}
+.pics .p button svg{width:16px;height:16px}
+.pics .add{border:2px dashed var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:var(--primary);font-weight:600;font-size:13px;aspect-ratio:1;border-radius:14px}
+.pics .add svg{width:26px;height:26px}
+.bar{height:8px;background:var(--surface-2);border-radius:99px;overflow:hidden}
+.bar>i{display:block;height:100%;background:var(--primary);border-radius:99px;transition:width .3s}
+.bar.ok>i{background:var(--success)}
+.small{font-size:13px;color:var(--muted)}
+.empty{text-align:center;padding:48px 20px;color:var(--muted)}
+.empty .big{font-size:48px;margin-bottom:8px}
+.empty h3{color:var(--text);margin:0 0 6px}
+
+.notice{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border-radius:var(--radius-sm);margin-bottom:12px;font-size:14px}
+.notice.danger{background:var(--danger-soft);color:var(--danger)}
+.notice.warn{background:var(--warn-soft);color:var(--warn)}
+.notice.info{background:var(--primary-soft);color:var(--primary)}
+.notice .grow{flex:1}
+.notice b{display:block;margin-bottom:2px}
+.notice .act{font-weight:700;text-decoration:underline;color:inherit;white-space:nowrap}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:11px 16px;border-radius:12px;font-weight:600;background:var(--surface-2);color:var(--text);min-height:44px}
+.btn.primary{background:var(--primary);color:var(--on-primary)}
+.btn.success{background:var(--success);color:#fff}
+.btn.danger{background:var(--danger-soft);color:var(--danger)}
+.btn.ghost{background:transparent;color:var(--primary)}
+.btn.block{width:100%}
+.btn:disabled{opacity:.5}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap}
+.btn-row .btn{flex:1 1 140px}
+.btn-row .btn.block{flex:none}
+.icon-btn{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;color:var(--muted);flex:none}
+.icon-btn:hover{background:var(--surface-2)}
+.icon-btn svg{width:22px;height:22px}
+
+/* modal */
+.overlay{position:fixed;inset:0;z-index:50;background:rgba(10,10,20,.45);display:flex;align-items:flex-end;justify-content:center;opacity:0;transition:opacity .2s}
+.overlay.open{opacity:1}
+.sheet{background:var(--surface);width:100%;max-width:640px;max-height:92dvh;overflow:auto;border-radius:22px 22px 0 0;padding:8px 18px calc(20px + env(safe-area-inset-bottom));transform:translateY(30px);transition:transform .22s}
+.overlay.open .sheet{transform:none}
+.sheet::before{content:"";display:block;width:40px;height:5px;border-radius:9px;background:var(--border);margin:2px auto 10px}
+@media(min-width:700px){.overlay{align-items:center}.sheet{border-radius:22px;padding-bottom:22px}.sheet::before{display:none}.sheet{padding-top:18px}}
+.sheet-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}
+.sheet h2{margin:4px 0 6px;font-size:22px;letter-spacing:-.01em;word-break:break-word}
+.sheet h3{margin:20px 0 8px;font-size:15px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.dialog .sheet{max-width:420px}
+
+/* forms */
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.field>span{font-size:14px;font-weight:600;color:var(--muted)}
+.input,select.input,textarea.input{width:100%;padding:12px 13px;border-radius:12px;border:1px solid var(--border);background:var(--surface-2);outline:none;min-height:46px}
+.input:focus{border-color:var(--primary);background:var(--surface)}
+textarea.input{resize:vertical;min-height:80px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.sub-row{display:flex;gap:6px;margin-bottom:6px}
+.sub-row .input{min-height:42px;padding:9px 12px}
+.err{color:var(--danger);font-size:13px;margin-top:-8px;margin-bottom:10px}
+
+/* subtasks */
+.subs{list-style:none;padding:0;margin:0}
+.subs li{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)}
+.subs li:last-child{border-bottom:0}
+.check{width:26px;height:26px;border-radius:8px;border:2px solid var(--border);display:grid;place-items:center;flex:none;transition:all .15s}
+.check svg{width:16px;height:16px;opacity:0;color:#fff}
+.check.on{background:var(--success);border-color:var(--success)}
+.check.on svg{opacity:1}
+.subs .t{flex:1;word-break:break-word}
+.subs li.done .t{text-decoration:line-through;color:var(--muted)}
+.add-sub{display:flex;gap:8px;margin-top:10px}
+.add-sub .input{flex:1}
+.progress-big{display:flex;align-items:center;gap:14px;margin:14px 0 4px}
+.progress-big .pct{font-size:30px;font-weight:800;letter-spacing:-.02em;min-width:70px}
+.progress-big .grow{flex:1}
+
+/* stats */
+.stat-row{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:12px}
+@media(min-width:700px){.stat-row{grid-template-columns:repeat(4,1fr)}}
+.stat .num{font-size:30px;font-weight:800;letter-spacing:-.02em}
+.stat .lbl{font-size:13px;color:var(--muted);font-weight:600}
+.section-title{font-size:18px;margin:22px 0 10px}
+.weeks{display:flex;align-items:flex-end;gap:8px;height:150px;padding-top:18px}
+.weeks .col{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end}
+.weeks .col i{display:block;width:100%;max-width:34px;background:var(--primary);border-radius:6px 6px 2px 2px;min-height:2px}
+.weeks .col.zero i{background:var(--border)}
+.weeks .col b{font-size:12px}
+.weeks .col span{font-size:11px;color:var(--muted);white-space:nowrap}
+.catstat{display:flex;flex-direction:column;gap:12px}
+.catstat .top{display:flex;justify-content:space-between;font-size:14px;margin-bottom:5px;gap:8px}
+.badges{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
+.bdg{text-align:center;padding:14px 10px;border-radius:14px;background:var(--surface);border:1px solid var(--border)}
+.bdg .e{font-size:34px;line-height:1.1}
+.bdg .n{font-weight:700;font-size:14px;margin-top:6px}
+.bdg .d{font-size:12px;color:var(--muted);margin-top:3px}
+.bdg.locked{opacity:.45}
+.bdg.locked .e{filter:grayscale(1)}
+.feed{list-style:none;margin:0;padding:0}
+.feed li{display:flex;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)}
+.feed li:last-child{border:0}
+.feed .ic{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;font-size:20px;background:var(--surface-2);flex:none}
+
+/* settings */
+.list{display:flex;flex-direction:column}
+.list-item{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)}
+.list-item:last-child{border:0}
+.list-item .grow{flex:1;min-width:0}
+.emoji-box{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-size:20px;background:color-mix(in srgb,var(--c,#888) 16%,transparent);flex:none}
+.themes{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.theme-opt{border:2px solid var(--border);border-radius:14px;padding:10px;text-align:center;font-weight:600;font-size:14px}
+.theme-opt.on{border-color:var(--primary)}
+.theme-opt .sw{height:46px;border-radius:9px;margin-bottom:8px;display:flex;align-items:flex-end;padding:6px;gap:4px;border:1px solid rgba(0,0,0,.06)}
+.theme-opt .sw i{height:8px;border-radius:4px;flex:1}
+.emoji-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:6px}
+.emoji-grid button{aspect-ratio:1;border-radius:10px;font-size:20px;background:var(--surface-2);border:2px solid transparent}
+.emoji-grid button.on{border-color:var(--primary);background:var(--primary-soft)}
+.colors{display:flex;flex-wrap:wrap;gap:10px}
+.colors button{width:34px;height:34px;border-radius:50%;background:var(--c);border:3px solid var(--surface);box-shadow:0 0 0 2px transparent}
+.colors button.on{box-shadow:0 0 0 2px var(--c)}
+
+/* дзвіночок, перемикач */
+.topwrap{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.bell{position:relative;width:44px;height:44px;border-radius:14px;background:var(--surface);border:1px solid var(--border);display:grid;place-items:center;color:var(--text);flex:none;margin-top:2px}
+.bell[hidden]{display:none}
+.bell svg{width:22px;height:22px}
+.bell #bellCount{position:absolute;top:-5px;right:-5px;min-width:20px;height:20px;padding:0 5px;border-radius:10px;background:var(--primary);color:var(--on-primary);font-size:11px;font-weight:800;display:grid;place-items:center;border:2px solid var(--bg)}
+.bell #bellCount[hidden]{display:none}
+.switch{width:50px;height:30px;border-radius:15px;background:var(--border);position:relative;flex:none;transition:background .2s}
+.switch i{position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:left .2s}
+.switch.on{background:var(--primary)}
+.switch.on i{left:23px}
+.notif{display:flex;gap:12px;align-items:flex-start;padding:12px;border-radius:14px;width:100%;text-align:left;margin-bottom:6px}
+.notif:hover{background:var(--surface-2)}
+.notif.unread{background:var(--primary-soft)}
+.notif .ic{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-size:20px;background:var(--surface);flex:none;border:1px solid var(--border)}
+.notif .tt{font-weight:600;word-break:break-word}
+.notif.unread .tt{font-weight:800}
+
+/* щоденний підсумок */
+.review .sheet{max-width:640px;padding-bottom:0}
+.rv-item{border:1px solid var(--border);border-radius:14px;margin-bottom:8px;overflow:hidden;background:var(--surface)}
+.rv-row{display:flex;align-items:center;gap:12px;padding:12px;width:100%;text-align:left}
+.rv-row .grow{flex:1;min-width:0}
+.rv-row .tt{font-weight:600;word-break:break-word}
+.rv-row.done .tt{text-decoration:line-through;color:var(--muted)}
+.rv-row.sel{background:var(--success-soft)}
+.rv-subs{border-top:1px solid var(--border);padding:2px 0 2px 22px;background:var(--surface-2)}
+.rv-subs .rv-row{padding:10px 12px}
+.chev{width:26px;height:26px;display:grid;place-items:center;color:var(--muted);transition:transform .2s;flex:none}
+.chev.open{transform:rotate(90deg)}
+.rv-foot{position:sticky;bottom:0;background:var(--surface);padding:12px 0 calc(16px + env(safe-area-inset-bottom));margin-top:8px;border-top:1px solid var(--border)}
+.rv-pick{display:flex;align-items:center;gap:12px;flex:1;min-width:0;text-align:left;padding:0}
+.rv-add{margin:6px 12px 10px 0}
+.rv-add .input{min-height:42px;padding:9px 12px;background:var(--surface)}
+.check.locked{opacity:.55}
+.nt-row{display:grid;grid-template-columns:26px 1fr 40px;grid-template-areas:"c t r" ". s .";gap:6px 10px;align-items:center;padding:10px;border:1px solid var(--border);border-radius:14px;margin-bottom:8px;background:var(--surface)}
+.nt-row .check{grid-area:c}
+.nt-row .nt-text{grid-area:t;min-height:42px;padding:9px 12px}
+.nt-row .nt-cat{grid-area:s;min-height:40px;padding:8px 10px}
+.nt-row .nt-rm{grid-area:r}
+@media(min-width:600px){.nt-row{grid-template-columns:26px 1fr 180px 40px;grid-template-areas:"c t s r"}}
+
+/* похвала */
+.celebrate.mega .sheet{background:linear-gradient(160deg,var(--primary-soft),var(--surface) 55%)}
+.celebrate.mega h2{font-size:34px;animation:pulse 0.9s ease-in-out infinite alternate}
+.celebrate .emrow{font-size:40px;letter-spacing:6px;margin:6px 0 10px;animation:wiggle 1.2s ease-in-out infinite alternate}
+@keyframes pulse{from{transform:scale(1)}to{transform:scale(1.08)}}
+@keyframes wiggle{from{transform:rotate(-4deg)}to{transform:rotate(4deg)}}
+.burst{position:fixed;inset:0;pointer-events:none;z-index:130;overflow:hidden}
+.burst span{position:absolute;left:50%;top:45%;font-size:34px;will-change:transform,opacity}
+
+/* інтерактивний тур */
+.tour{position:fixed;inset:0;z-index:300}
+.card,.themes,.segmented,.field,.two,.rv-item,.section-title,.sheet h3{scroll-margin-top:96px}
+.tour-hole{position:fixed;border-radius:14px;box-shadow:0 0 0 3px var(--primary),0 0 0 9999px rgba(12,12,28,.62);transition:all .28s ease;pointer-events:none}
+.tour-tip{position:fixed;background:var(--surface);color:var(--text);border-radius:18px;padding:14px 16px 12px;box-shadow:0 10px 40px rgba(0,0,0,.35);transition:top .28s ease,left .28s ease}
+.tour-tip .tt{font-size:18px;font-weight:800;margin-bottom:4px}
+.tour-tip .tx{font-size:15px;color:var(--muted);line-height:1.45}
+.tour-nav{display:flex;gap:6px;align-items:center;margin-top:12px;flex-wrap:wrap}
+.tour-nav .btn{min-height:40px;padding:8px 12px;font-size:14px}
+
+/* туторіал */
+.tutorial .sheet{max-width:520px;display:flex;flex-direction:column;min-height:min(640px,88dvh)}
+.tut-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.tut-top .small{font-weight:700}
+.tut-body{flex:1;display:flex;flex-direction:column;align-items:center;text-align:center;padding:6px 4px 10px;animation:tutIn .25s ease}
+@keyframes tutIn{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:none}}
+.tut-hero{width:116px;height:116px;border-radius:36px;display:grid;place-items:center;font-size:60px;background:linear-gradient(145deg,var(--primary-soft),var(--surface-2));margin:10px 0 18px;box-shadow:var(--shadow)}
+.tut-body h2{font-size:24px;margin:0 0 8px}
+.tut-body .lead{color:var(--muted);margin:0 0 14px;max-width:420px}
+.tut-list{list-style:none;padding:0;margin:0;text-align:left;width:100%;max-width:420px}
+.tut-list li{display:flex;gap:10px;align-items:flex-start;padding:9px 12px;border-radius:12px;background:var(--surface-2);margin-bottom:7px;font-size:15px}
+.tut-list li span:first-child{flex:none;width:24px;text-align:center}
+.tut-dots{display:flex;justify-content:center;gap:6px;margin:8px 0 12px;flex-wrap:wrap}
+.tut-dots i{width:7px;height:7px;border-radius:50%;background:var(--border);transition:all .2s}
+.tut-dots i.on{width:20px;border-radius:4px;background:var(--primary)}
+.tut-nav{display:flex;gap:8px}
+.tut-nav .btn{flex:1}
+
+/* toast + confetti */
+.toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom));transform:translate(-50%,20px);background:var(--text);color:var(--bg);padding:12px 16px;border-radius:12px;font-weight:600;font-size:14px;opacity:0;transition:all .25s;z-index:100;display:flex;gap:14px;align-items:center;max-width:calc(100% - 32px);pointer-events:none}
+.toast.show{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+.toast button{color:var(--primary-soft);font-weight:800;text-decoration:underline}
+.confetti{position:fixed;inset:0;pointer-events:none;z-index:120;overflow:hidden}
+.confetti i{position:absolute;top:-12px;width:9px;height:14px;border-radius:2px;animation:fall 1.6s ease-in forwards}
+@keyframes fall{to{transform:translateY(105vh) rotate(720deg);opacity:.7}}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+</head>
+<body>
+<header class="topbar"><div class="wrap topwrap"><div style="min-width:0"><h1 id="title">Мої задачі</h1><div class="sub" id="subtitle"></div></div>
+  <button class="bell" id="bell" aria-label="Сповіщення"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span id="bellCount" hidden>0</span></button>
+</div></header>
+<main class="wrap" id="view"></main>
+
+<button class="fab" id="fab" aria-label="Нова задача">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+</button>
+
+<nav class="tabbar"><div class="inner">
+  <button class="tab" data-view="goals"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg>Задачі</button>
+  <button class="tab" data-view="stats"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg>Досягнення</button>
+  <button class="tab" data-view="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>Налаштування</button>
+</div></nav>
+
+<div id="modals"></div>
+<div class="toast" id="toast" role="status"></div>
+<input type="file" id="importFile" accept="application/json,.json" class="sr">
+<input type="file" id="picFile" accept="image/*" multiple class="sr">
+
+<script src="firebase-bundle.js"></script>
+<script>
+"use strict";
+/* ========== Константи ========== */
+const STORE_KEY = 'achievement-tracker-v1';
+const NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+const CP = NATIVE ? window.Capacitor.Plugins : {};
+let nativePerm='default';
+const APP_VERSION = '2.1.0';
+const COLORS = ['#4f46e5','#d9488a','#22915f','#c97a12','#0e8fd1','#8b3fd9','#dc3e44','#5b6475','#0f9b9b','#a0522d'];
+const EMOJIS = ['🌱','💼','💪','📚','🧘','❤️','💰','🏠','✈️','🎨','🎵','🍎','🏃','🧠','💻','📈','🎓','👨‍👩‍👧','🐾','🌍','⚽','🛠️','✍️','⭐'];
+const DEFAULT_CATS = [
+  {id:'personal', name:'Особисте', emoji:'🌱', color:'#22915f'},
+  {id:'work', name:'Робоче', emoji:'💼', color:'#4f46e5'}
+];
+const REMINDERS = [
+  ['none','Без нагадування'],['0','У день дедлайну'],['1h','За 1 годину'],['1d','За 1 день'],['3d','За 3 дні'],['1w','За тиждень']
+];
+const PRIORITIES = {high:'Високий', med:'Середній', low:'Низький'};
+const THEME_COLORS = {light:'#f5f6fa', dark:'#111217', pink:'#fff4f8'};
+
+/* ========== Утиліти ========== */
+const $ = (s, r=document) => r.querySelector(s);
+const $$ = (s, r=document) => [...r.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36)+Math.random().toString(36).slice(2));
+const nowIso = () => new Date().toISOString();
+function plural(n, f){ n=Math.abs(n); const a=n%10, b=n%100; if(a===1&&b!==11) return f[0]; if(a>=2&&a<=4&&(b<12||b>14)) return f[1]; return f[2]; }
+const DAYS = ['день','дні','днів'];
+function pad(n){return String(n).padStart(2,'0')}
+function ymd(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}
+function parseYmd(s){const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d)}
+function startOfDay(d){const x=new Date(d);x.setHours(0,0,0,0);return x}
+function dayDiff(a,b){return Math.round((startOfDay(b)-startOfDay(a))/86400000)}
+function fmtDate(s, withYear){const d=parseYmd(s);const o={day:'numeric',month:'long'};if(withYear||d.getFullYear()!==new Date().getFullYear())o.year='numeric';return d.toLocaleDateString('uk-UA',o)}
+function fmtShort(d){return d.getDate()+'.'+pad(d.getMonth()+1)}
+function deadlineEnd(g){ if(!g.deadline) return null; const d=parseYmd(g.deadline); if(g.time){const [h,m]=g.time.split(':');d.setHours(+h,+m,0,0)} else d.setHours(23,59,59,0); return d; }
+function deadlineInfo(g){
+  if(g.status==='done') return g.completedAt ? {text:'✓ Виконано '+fmtDate(ymd(new Date(g.completedAt))), cls:'ok'} : {text:'✓ Виконано', cls:'ok'};
+  if(!g.deadline) return null;
+  const now=new Date(), end=deadlineEnd(g), diff=dayDiff(now, parseYmd(g.deadline));
+  const t = g.time ? ' о '+g.time : '';
+  if(end<now){ return {text:'🗓 Перепланувати', cls:'resched', overdue:true}; }
+  if(diff===0) return {text:'Сьогодні'+t, cls:'warn'};
+  if(diff===1) return {text:'Завтра'+t, cls:'warn'};
+  if(diff<=7) return {text:`Через ${diff} ${plural(diff,DAYS)}`, cls: diff<=2?'warn':''};
+  return {text:'До '+fmtDate(g.deadline), cls:''};
+}
+function progress(g){ const n=g.subtasks.length; if(!n) return g.status==='done'?100:0; return Math.round(g.subtasks.filter(s=>s.done).length/n*100); }
+const ICONS = {
+  close:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+  trash:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>',
+  edit:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4"/></svg>',
+  plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>'
+};
+
+/* ========== Сховище ========== */
+function defaultState(){
+  return {version:1, goals:[], categories:DEFAULT_CATS.map(c=>({...c})),
+    settings:{theme:'light', defaultReminder:'1d', lastBackup:null, installHintDismissed:false, dailyReview:true, gender:'', tutorialSeen:false},
+    badges:{}, stats:{backups:0}, letters:[], restDays:[]};
+}
+function normalize(s){
+  const d=defaultState();
+  if(!s||typeof s!=='object') return d;
+  return {
+    version:1,
+    goals:(Array.isArray(s.goals)?s.goals:[]).filter(g=>g&&g.id&&g.title).map(g=>({
+      id:String(g.id), title:String(g.title), desc:g.desc||'', categoryId:g.categoryId||null,
+      deadline:g.deadline||'', time:g.time||'', priority:PRIORITIES[g.priority]?g.priority:'med',
+      reminder:REMINDERS.some(r=>r[0]===g.reminder)?g.reminder:'none',
+      status:['active','done','archived'].includes(g.status)?g.status:'active',
+      subtasks:(Array.isArray(g.subtasks)?g.subtasks:[]).filter(x=>x&&x.title).map(x=>({id:String(x.id||uid()),title:String(x.title),done:!!x.done,doneAt:x.doneAt||null})),
+      createdAt:g.createdAt||nowIso(), updatedAt:g.updatedAt||g.createdAt||nowIso(), completedAt:g.completedAt||null
+    })),
+    categories:(Array.isArray(s.categories)?s.categories:d.categories).filter(c=>c&&c.id&&c.name).map(c=>({id:String(c.id),name:String(c.name),emoji:c.emoji||'⭐',color:c.color||COLORS[0],custom:!!c.custom})),
+    settings:{...d.settings, ...(s.settings||{})},
+    badges:(s.badges&&typeof s.badges==='object')?s.badges:{},
+    stats:{...d.stats, ...(s.stats||{})},
+    letters:(Array.isArray(s.letters)?s.letters:[]).filter(l=>l&&l.text).map(l=>({id:String(l.id||uid()),text:String(l.text)})),
+    restDays:(Array.isArray(s.restDays)?s.restDays:[]).filter(x=>/^\d{4}-\d\d-\d\d$/.test(x))
+  };
+}
+function load(){ try{ const raw=localStorage.getItem(STORE_KEY); if(raw){ const st=normalize(JSON.parse(raw)); st.goals=st.goals.filter(g=>g.id!==TOUR_SAMPLE); return st; } }catch(e){} return defaultState(); }
+const TOUR_SAMPLE='tour-sample';
+let state = load();
+function save(){
+  try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }catch(e){ toast('Не вдалося зберегти дані'); }
+  syncSchedule();
+  try{ if(sync.user) schedulePush(); }catch(e){}
+}
+try{ navigator.storage && navigator.storage.persist && navigator.storage.persist(); }catch(e){}
+
+/* IndexedDB — потрібен для фонових нагадувань (service worker не бачить localStorage) */
+function idb(){ return new Promise((res,rej)=>{ if(!('indexedDB' in window)) return rej('no idb'); const r=indexedDB.open('tracker-bg',1); r.onupgradeneeded=()=>r.result.createObjectStore('kv'); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
+async function idbGet(k){ try{ const db=await idb(); return await new Promise(r=>{ const q=db.transaction('kv').objectStore('kv').get(k); q.onsuccess=()=>r(q.result); q.onerror=()=>r(undefined); }); }catch(e){ return undefined; } }
+async function idbSet(k,v){ try{ const db=await idb(); await new Promise(r=>{ const t=db.transaction('kv','readwrite'); t.objectStore('kv').put(v,k); t.oncomplete=r; t.onerror=r; }); }catch(e){} }
+
+const cat = id => state.categories.find(c=>c.id===id) || {id:null,name:'Без категорії',emoji:'📌',color:'#5b6475'};
+const goalById = id => state.goals.find(g=>g.id===id);
+
+/* ========== Нагадування ========== */
+const OFFSETS = {'0':0,'1h':3600e3,'1d':86400e3,'3d':3*86400e3,'1w':7*86400e3};
+function buildSchedule(){
+  const items=[];
+  for(const g of state.goals){
+    if(g.id===TOUR_SAMPLE) continue;
+    if(g.status!=='active'||!g.deadline) continue;
+    const end=deadlineEnd(g); const sig=g.id+'|'+g.deadline+'|'+(g.time||'');
+    if(g.reminder!=='none'){
+      let base=parseYmd(g.deadline);
+      if(g.time){const [h,m]=g.time.split(':');base.setHours(+h,+m,0,0)} else base.setHours(9,0,0,0);
+      const at=base.getTime()-OFFSETS[g.reminder];
+      const info = g.reminder==='0' ? 'Сьогодні дедлайн' : 'Наближається дедлайн: '+fmtDate(g.deadline)+(g.time?' о '+g.time:'');
+      items.push({key:sig+'|r|'+g.reminder, at, goalId:g.id, title:'⏰ '+g.title, body:info});
+    }
+    items.push({key:sig+'|over', at:end.getTime()+1000, goalId:g.id, resched:true, title:'🗓 Хочеш перепланувати «'+g.title+'»?', body:'Обери нову дату, коли буде зручно 💛'});
+  }
+  return items;
+}
+/* Щоденний підсумок */
+const DAILY_HOUR=21;
+const DAILY_TITLE='Час прописати задачі, які були сьогодні виконані тобою';
+const DAILY_BODY='Натисни, щоб відмітити зроблене ✨';
+function dailyItem(d=new Date()){ const day=ymd(d); const at=new Date(d); at.setHours(DAILY_HOUR,0,0,0); return {key:'daily|'+day, at:at.getTime(), type:'daily', title:DAILY_TITLE, body:DAILY_BODY, review:true}; }
+async function syncSchedule(){ nativeSchedule(); await idbSet('schedule', buildSchedule()); await idbSet('daily', {enabled: state.settings.dailyReview!==false, hour:DAILY_HOUR}); }
+let swReg=null;
+async function checkReminders(){
+  const sched=buildSchedule(); const notified=(await idbGet('notified'))||{};
+  const now=Date.now(); let changed=false; const fresh=[];
+  for(const it of sched){
+    if(it.at>now||notified[it.key]) continue;
+    notified[it.key]=now; changed=true;
+    if(it.at < now-3*86400e3 && it.key.endsWith('|over')) continue; // старі прострочення не спамимо
+    fresh.push({...it, type: it.key.endsWith('|over')?'overdue':'reminder'});
+  }
+  if(state.settings.dailyReview!==false){ const d=dailyItem(); if(now>=d.at && !notified[d.key]){ notified[d.key]=now; changed=true; fresh.push(d); } }
+  // прибираємо зайве (щоденні ключі тримаємо 7 днів)
+  const keys=new Set(sched.map(i=>i.key));
+  for(const k in notified){ if(k.startsWith('daily|') ? (now-notified[k]>7*86400e3) : !keys.has(k)) { delete notified[k]; changed=true; } }
+  if(changed) await idbSet('notified', notified);
+  if(fresh.length){ await addFeed(fresh); for(const it of fresh) await showNotification(it); }
+}
+async function showNotification(it){
+  if(NATIVE){   // в APK сповіщення ставить сама система Android (точно за часом); тут — лише тестове
+    if(nativePerm==='granted' && String(it.key).startsWith('test-')) try{ await CP.LocalNotifications.schedule({notifications:[{id:2, title:it.title, body:it.body, smallIcon:'ic_stat_star', schedule:{at:new Date(Date.now()+1500), allowWhileIdle:true}}]}); }catch(e){}
+    return;
+  }
+  if(!('Notification' in window) || Notification.permission!=='granted') return;
+  try{
+    const reg = swReg || (navigator.serviceWorker && await navigator.serviceWorker.getRegistration());
+    if(reg){ await reg.showNotification(it.title,{body:it.body,icon:'icons/icon-192.png',badge:'icons/badge-96.png',tag:it.key,data:{goalId:it.goalId,review:!!it.review,resched:!!it.resched}}); }
+    else new Notification(it.title,{body:it.body,icon:'icons/icon-192.png'});
+  }catch(e){}
+}
+
+/* Стрічка сповіщень у застосунку (IndexedDB, щоб service worker теж міг дописувати) */
+let feed=[];
+async function loadFeed(){ feed=(await idbGet('feed'))||[]; updateBell(); }
+async function addFeed(items){
+  feed=(await idbGet('feed'))||[];
+  for(const it of items){ if(feed.some(f=>f.key===it.key)) continue; feed.unshift({key:it.key, type:it.type, title:it.title, body:it.body, goalId:it.goalId||null, at:Math.min(Date.now(), it.at||Date.now()), read:false}); }
+  feed.sort((a,b)=>b.at-a.at); feed=feed.slice(0,60);
+  await idbSet('feed',feed); updateBell();
+  try{ if(sync.user) schedulePush(); }catch(e){}
+}
+async function saveFeed(){ await idbSet('feed',feed); updateBell(); try{ if(sync.user) schedulePush(); }catch(e){} }
+function updateBell(){ const n=feed.filter(f=>!f.read).length; const b=$('#bellCount'); if(b){ b.textContent=n>9?'9+':n; b.hidden=!n; } }
+async function enableNotifications(){
+  if(NATIVE){
+    try{ const r=await CP.LocalNotifications.requestPermissions(); nativePerm = r.display==='granted'?'granted':(r.display==='denied'?'denied':'default'); }catch(e){}
+    if(nativePerm==='granted'){ toast('Сповіщення увімкнено ✅'); nativeSchedule(); checkReminders(); }
+    else toast('Сповіщення вимкнено в налаштуваннях Android');
+    render(); return;
+  }
+  if(!('Notification' in window)){ toast('Цей браузер не підтримує сповіщення'); return; }
+  let p=Notification.permission;
+  if(p==='default'){ try{ p=await Notification.requestPermission(); }catch(e){} }
+  if(p==='granted'){ toast('Сповіщення увімкнено ✅'); registerPeriodic(); checkReminders(); }
+  else if(p==='denied') toast('Сповіщення заблоковано в налаштуваннях браузера');
+  render();
+}
+async function registerPeriodic(){
+  try{
+    const reg = swReg || await navigator.serviceWorker.ready;
+    if(!('periodicSync' in reg)) return;
+    const st = await navigator.permissions.query({name:'periodic-background-sync'});
+    if(st.state==='granted') await reg.periodicSync.register('deadline-check',{minInterval:60*60*1000});
+  }catch(e){}
+}
+function notifState(){ if(NATIVE) return nativePerm; if(!('Notification' in window)) return 'unsupported'; return Notification.permission; }
+
+/* ========== Нативний Android (APK через Capacitor) ========== */
+function nId(key){ let h=0; for(const c of String(key)) h=(h*31+c.charCodeAt(0))|0; return 10+Math.abs(h)%2000000000; }   // id 1 — щоденний, 2 — тестове
+async function nativeRefreshPerm(){ try{ const r=await CP.LocalNotifications.checkPermissions(); nativePerm = r.display==='granted'?'granted':(r.display==='denied'?'denied':'default'); }catch(e){} }
+let nativeTimer=null;
+function nativeSchedule(){ if(!NATIVE) return; clearTimeout(nativeTimer); nativeTimer=setTimeout(nativeScheduleNow, 400); }
+async function nativeScheduleNow(){
+  if(!NATIVE || nativePerm!=='granted') return;
+  const LN=CP.LocalNotifications;
+  try{
+    const pend=await LN.getPending();
+    if(pend.notifications.length) await LN.cancel({notifications:pend.notifications.map(n=>({id:n.id}))});
+    const now=Date.now(), list=[];
+    for(const it of buildSchedule()){ if(it.at<=now+5000) continue;
+      list.push({id:nId(it.key), title:it.title, body:it.body, smallIcon:'ic_stat_star', schedule:{at:new Date(it.at), allowWhileIdle:true}, extra:{goalId:it.goalId||null, resched:!!it.resched}}); }
+    list.sort((a,b)=>a.schedule.at-b.schedule.at);
+    const out=list.slice(0,60);
+    if(state.settings.dailyReview!==false) out.push({id:1, title:DAILY_TITLE, body:DAILY_BODY, smallIcon:'ic_stat_star', schedule:{on:{hour:DAILY_HOUR, minute:0}, allowWhileIdle:true}, extra:{review:true}});
+    if(out.length) await LN.schedule({notifications:out});
+  }catch(e){ console.log('native schedule error', e); }
+}
+function nativeInit(){
+  if(!NATIVE) return;
+  nativeRefreshPerm().then(()=>{ render(); nativeSchedule(); });
+  try{ CP.LocalNotifications.addListener('localNotificationActionPerformed', ev=>{
+    const x=(ev&&ev.notification&&ev.notification.extra)||{};
+    setTimeout(()=>{ if(x.review) openReview(); else if(x.goalId && goalById(x.goalId)){ openGoal(x.goalId); if(x.resched) reschedule(x.goalId); } }, 300);
+  }); }catch(e){}
+  try{ CP.App.addListener('backButton', ()=>{
+    if(tourActive){ const s=document.querySelector('[data-t=skip],[data-t=end]'); s&&s.click(); return; }
+    if(modalStack.length){ modalStack[modalStack.length-1].close(); return; }
+    if(ui.view!=='goals'){ ui.view='goals'; render(); window.scrollTo(0,0); return; }
+    CP.App.exitApp();
+  }); }catch(e){}
+  try{ CP.App.addListener('resume', ()=>{ nativeRefreshPerm().then(()=>{ loadFeed().then(checkReminders); if(!modalStack.length) render(); nativeSchedule(); }); }); }catch(e){}
+}
+
+/* ========== Досягнення (бейджі) ========== */
+function computeStats(){
+  const done=state.goals.filter(g=>g.status==='done');
+  const dates=new Set();
+  let doneSubs=0;
+  for(const g of state.goals){ for(const s of g.subtasks){ if(s.done){ doneSubs++; if(s.doneAt) dates.add(ymd(new Date(s.doneAt))); } } if(g.completedAt&&g.status==='done') dates.add(ymd(new Date(g.completedAt))); }
+  // поточна серія
+  let streak=0; const d=new Date();
+  if(!dates.has(ymd(d))) d.setDate(d.getDate()-1);
+  while(dates.has(ymd(d))){ streak++; d.setDate(d.getDate()-1); }
+  // найдовша серія
+  const sorted=[...dates].sort(); let best=0, run=0, prev=null;
+  for(const s of sorted){ const cur=parseYmd(s); run = prev && dayDiff(prev,cur)===1 ? run+1 : 1; best=Math.max(best,run); prev=cur; }
+  const withDl=done.filter(g=>g.deadline&&g.completedAt);
+  const onTime=withDl.filter(g=>new Date(g.completedAt)<=deadlineEnd(g)).length;
+  const doneCats=new Set(done.map(g=>g.categoryId).filter(Boolean)).size;
+  const perMonth={}; for(const g of done) if(g.completedAt){ const k=g.completedAt.slice(0,7); perMonth[k]=(perMonth[k]||0)+1; }
+  const bestMonth=Math.max(0,...Object.values(perMonth));
+  return {done, doneCount:done.length, doneSubs, streak, best, onTime, withDl:withDl.length, doneCats, bestMonth,
+    active:state.goals.filter(g=>g.status==='active'), created:state.goals.length};
+}
+const BADGES = [
+  {id:'first_step', e:'👣', n:'Перший крок', d:'Виконати першу підзадачу', t:s=>s.doneSubs>=1},
+  {id:'first_goal', e:'🎯', n:'Перша задача', d:'Завершити першу задачу', t:s=>s.doneCount>=1},
+  {id:'five', e:'⭐', n:'П’ять зірок', d:'Завершити 5 задач', t:s=>s.doneCount>=5},
+  {id:'ten', e:'🏅', n:'Десятка', d:'Завершити 10 задач', t:s=>s.doneCount>=10},
+  {id:'champ', e:'🏆', n:'Чемпіон', d:'Завершити 25 задач', t:s=>s.doneCount>=25},
+  {id:'ontime', e:'⏱️', n:'Пунктуальність', d:'5 задач завершено вчасно', t:s=>s.onTime>=5},
+  {id:'steps25', e:'🌿', n:'Наполегливість', d:'Виконати 25 кроків', t:s=>s.doneSubs>=25},
+  {id:'month5', e:'🌻', n:'Вдалий місяць', d:'5 задач за один місяць', t:s=>s.bestMonth>=5},
+  {id:'versatile', e:'🌈', n:'Різнобічність', d:'Задачі завершено у 3 категоріях', t:s=>s.doneCats>=3},
+  {id:'organizer', e:'🗂️', n:'Організатор', d:'Створити власну категорію', t:()=>state.categories.some(c=>c.custom)},
+  {id:'planner', e:'🧭', n:'Планувальник', d:'Створити 10 задач', t:s=>s.created>=10},
+  {id:'saver', e:'💾', n:'Обачність', d:'Зробити резервну копію', t:()=>state.stats.backups>=1},
+];
+function checkBadges(){
+  const s=computeStats(); const fresh=[];
+  for(const b of BADGES){ if(!state.badges[b.id] && b.t(s)){ state.badges[b.id]=nowIso(); fresh.push(b); } }
+  if(fresh.length){ save(); setTimeout(()=>toast(`${fresh[0].e} Нове досягнення: ${fresh[0].n}!`+(fresh.length>1?` (+${fresh.length-1})`:'')), 400); }
+}
+
+/* ========== UI-стан ========== */
+const ui = {view:'goals', status:'active', cat:'all', chart:'weeks'};
+
+/* Звертання за родом: G3('чоловічий','жіночий','запасний' — лише поки рід не обрано) */
+const G3=(m,f,n)=>({m,f})[state.settings.gender]||n;
+const hasGender=()=>state.settings.gender==='m'||state.settings.gender==='f';
+function askGender(){
+  return dialog({title:'Як до тебе звертатися?', text:'Щоб застосунок говорив з тобою правильно. Змінити можна будь-коли в Налаштуваннях.',
+    buttons:[{label:'👩 Жіночий рід — «ти зробила»',value:'f',kind:'primary'},{label:'👨 Чоловічий рід — «ти зробив»',value:'m',kind:'primary'}]})
+    .then(v=>{ if(v){ state.settings.gender=v; save(); render(); } return v; });
+}
+
+/* Перепланувати задачу */
+function reschedule(id, after){
+  const g=goalById(id); if(!g) return;
+  openDatePicker('', v=>{
+    if(!v) return;
+    g.deadline=v; touch(g); save(); render(); after&&after();
+    toast('Перенесено на '+fmtDate(v)+' 🗓');
+  }, 'Нова дата');
+}
+let deferredInstall=null;
+
+/* ========== Рендер ========== */
+function applyTheme(){
+  const t=state.settings.theme; document.documentElement.dataset.theme=t;
+  $('meta[name=theme-color]').setAttribute('content', THEME_COLORS[t]||THEME_COLORS.light);
+}
+function render(){
+  applyTheme();
+  $$('.tab').forEach(b=>b.classList.toggle('active', b.dataset.view===ui.view));
+  $('#fab').hidden = ui.view!=='goals';
+  $('#bell').hidden = ui.view!=='goals'; updateBell();
+  const v=$('#view');
+  if(ui.view==='goals'){ $('#title').textContent='Мої задачі'; $('#subtitle').textContent=goalsSubtitle(); v.innerHTML=renderGoals(); }
+  else if(ui.view==='stats'){ $('#title').textContent='Досягнення'; $('#subtitle').textContent='Ваш прогрес і нагороди'; v.innerHTML=renderStats(); }
+  else { $('#title').textContent='Налаштування'; $('#subtitle').textContent=''; v.innerHTML=renderSettings(); }
+}
+function goalsSubtitle(){
+  const a=state.goals.filter(g=>g.status==='active').length;
+  const d=new Date().toLocaleDateString('uk-UA',{weekday:'long',day:'numeric',month:'long'});
+  return d.charAt(0).toUpperCase()+d.slice(1)+' · '+a+' '+plural(a,['активна задача','активні задачі','активних задач']);
+}
+function sortGoals(list){
+  const pr={high:0,med:1,low:2};
+  if(ui.status==='active') return list.sort((a,b)=>{
+    const da=a.deadline?deadlineEnd(a).getTime():Infinity, db=b.deadline?deadlineEnd(b).getTime():Infinity;
+    return da-db || pr[a.priority]-pr[b.priority] || a.createdAt.localeCompare(b.createdAt);
+  });
+  return list.sort((a,b)=>(b.completedAt||b.updatedAt).localeCompare(a.completedAt||a.updatedAt));
+}
+function renderGoals(){
+  let h='';
+  const active=state.goals.filter(g=>g.status==='active');
+  const overdue=active.filter(g=>{const i=deadlineInfo(g);return i&&i.overdue});
+  const today=active.filter(g=>g.deadline&&!deadlineInfo(g).overdue&&dayDiff(new Date(),parseYmd(g.deadline))===0);
+  if(overdue.length) h+=`<div class="notice info"><div class="grow"><b>🗓 Є задачі, які варто перепланувати</b>${overdue.slice(0,4).map(g=>`<button class="act" style="font-weight:600;margin-right:10px" data-action="resched" data-id="${esc(g.id)}">${esc(g.title)}</button>`).join('')}${overdue.length>4?'…':''}</div></div>`;
+  if(today.length) h+=`<div class="notice warn"><div class="grow"><b>Дедлайн сьогодні: ${today.length}</b>${today.slice(0,3).map(g=>esc(g.title)).join(', ')}</div></div>`;
+  const ns=notifState();
+  if(ns==='default' && active.some(g=>g.deadline&&g.reminder!=='none'))
+    h+=`<div class="notice info"><div class="grow"><b>Увімкніть нагадування</b>Щоб отримувати сповіщення про дедлайни.</div><button class="act" data-action="enable-notif">Увімкнути</button></div>`;
+  if(deferredInstall && !state.settings.installHintDismissed)
+    h+=`<div class="notice info"><div class="grow"><b>Встановіть застосунок</b>Додайте трекер на головний екран.</div><button class="act" data-action="install">Встановити</button><button class="act" data-action="dismiss-install" aria-label="Закрити">✕</button></div>`;
+
+  const counts={active:active.length, done:state.goals.filter(g=>g.status==='done').length, archived:state.goals.filter(g=>g.status==='archived').length};
+  h+=`<div class="segmented" role="tablist">${[['active','Активні'],['done','Виконані'],['archived','Архів']].map(([k,l])=>`<button class="${ui.status===k?'on':''}" data-action="status" data-v="${k}">${l}${counts[k]?' · '+counts[k]:''}</button>`).join('')}</div>`;
+  h+=`<div class="chips"><button class="chip ${ui.cat==='all'?'on':''}" data-action="cat" data-v="all">Усі</button>${state.categories.map(c=>`<button class="chip ${ui.cat===c.id?'on':''}" data-action="cat" data-v="${esc(c.id)}">${esc(c.emoji)} ${esc(c.name)}</button>`).join('')}</div>`;
+
+  let list=state.goals.filter(g=>g.status===ui.status && (ui.cat==='all'||g.categoryId===ui.cat));
+  list=sortGoals(list);
+  if(!list.length){
+    const msg = ui.status==='active'
+      ? (state.goals.length? ['🎯','Тут поки порожньо','Додайте нову задачу кнопкою «+»'] : ['💡','Почнімо!','Створіть свою першу задачу: натисніть «+» унизу праворуч'])
+      : ui.status==='done' ? ['🏁','Ще немає виконаних задач','Завершені задачі з’являться тут'] : ['🗄️','Архів порожній','Сюди можна відкладати задачі, які вже не актуальні'];
+    return h+`<div class="empty"><div class="big">${msg[0]}</div><h3>${msg[1]}</h3><div>${msg[2]}</div></div>`;
+  }
+  h+='<div class="grid">'+list.map(goalCard).join('')+'</div><div style="height:24px"></div>';
+  return h;
+}
+function goalCard(g){
+  const c=cat(g.categoryId), p=progress(g), di=deadlineInfo(g), n=g.subtasks.length, dn=g.subtasks.filter(s=>s.done).length;
+  return `<button class="card goal-card ${g.status==='done'?'done':''}" data-action="open" data-id="${esc(g.id)}">
+    <div class="row"><span class="cat-pill" style="--c:${esc(c.color)}">${esc(c.emoji)} ${esc(c.name)}</span>${g.status==='done'?'':`<span class="prio ${g.priority}" title="Пріоритет: ${PRIORITIES[g.priority]}"></span>`}</div>
+    <h3>${esc(g.title)}</h3>
+    ${n||g.status!=='done'?`<div class="bar ${p===100?'ok':''}"><i style="width:${p}%"></i></div>`:''}
+    <div class="row"><span class="small">${n?`${dn} з ${n} ${plural(n,['кроку','кроків','кроків'])} · ${p}%`:(g.status==='done'?'':'Без кроків')}</span>${di?(di.overdue?`<span class="badge resched" role="button" tabindex="0" data-action="resched" data-id="${esc(g.id)}">${esc(di.text)}</span>`:`<span class="badge ${di.cls}">${esc(di.text)}</span>`):''}</div>
+  </button>`;
+}
+
+function renderStats(){
+  const s=computeStats(); const now=new Date();
+  const overdue=s.active.filter(g=>{const i=deadlineInfo(g);return i&&i.overdue}).length;
+  const weekStart=startOfDay(now); weekStart.setDate(weekStart.getDate()-((weekStart.getDay()+6)%7));
+  const monthStart=new Date(now.getFullYear(),now.getMonth(),1);
+  const thisWeek=s.done.filter(g=>g.completedAt&&new Date(g.completedAt)>=weekStart).length;
+  const thisMonth=s.done.filter(g=>g.completedAt&&new Date(g.completedAt)>=monthStart).length;
+  let h=`<div class="stat-row">
+    <div class="card stat"><div class="num">${s.doneCount}</div><div class="lbl">Виконано задач</div></div>
+    <div class="card stat"><div class="num">${s.active.length}</div><div class="lbl">Активних</div></div>
+    <div class="card stat"><div class="num">${thisMonth}</div><div class="lbl">Виконано цього місяця</div></div>
+    <div class="card stat"><div class="num">${s.doneSubs}</div><div class="lbl">Кроків зроблено</div></div>
+  </div>
+  <div class="card"><div class="row" style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
+    <div><b>${thisWeek}</b> <span class="small">виконано цього тижня</span></div>
+    <div><b>${state.restDays.length}</b> <span class="small">${plural(state.restDays.length,['день','дні','днів'])} відпочинку 🌿</span></div>
+  </div></div>`;
+
+  // графік: дні / тижні / місяці
+  const MSHORT=['Січ','Лют','Бер','Кві','Тра','Чер','Лип','Сер','Вер','Жов','Лис','Гру'];
+  const buckets=[]; const mode=ui.chart;
+  if(mode==='days'){ for(let i=9;i>=0;i--){ const st=startOfDay(now); st.setDate(st.getDate()-i); const en=new Date(st); en.setDate(en.getDate()+1); buckets.push({st,en,label:i===0?'Сьог.':fmtShort(st)}); } }
+  else if(mode==='months'){ for(let i=11;i>=0;i--){ const st=new Date(now.getFullYear(),now.getMonth()-i,1); const en=new Date(st.getFullYear(),st.getMonth()+1,1); buckets.push({st,en,label:MSHORT[st.getMonth()]}); } }
+  else { for(let i=7;i>=0;i--){ const st=new Date(weekStart); st.setDate(st.getDate()-i*7); const en=new Date(st); en.setDate(en.getDate()+7); buckets.push({st,en,label:i===0?'Цей':fmtShort(st)}); } }
+  for(const b of buckets) b.n=s.done.filter(g=>g.completedAt&&new Date(g.completedAt)>=b.st&&new Date(g.completedAt)<b.en).length;
+  const max=Math.max(1,...buckets.map(w=>w.n));
+  const aria={days:'останні 10 днів',weeks:'останні 8 тижнів',months:'останні 12 місяців'}[mode];
+  h+=`<h2 class="section-title">Виконані задачі</h2><div class="card">
+    <div class="segmented" style="margin-top:0">${[['days','Дні'],['weeks','Тижні'],['months','Місяці']].map(([k,l])=>`<button class="${mode===k?'on':''}" data-action="chart" data-v="${k}">${l}</button>`).join('')}</div>
+    <div class="weeks" role="img" aria-label="Кількість виконаних задач за ${aria}">${buckets.map(w=>`<div class="col ${w.n?'':'zero'}"><b>${w.n||''}</b><i style="height:${Math.max(2,w.n/max*100)}%"></i><span>${w.label}</span></div>`).join('')}</div></div>`;
+
+  // категорії
+  const rows=state.categories.map(c=>{const all=state.goals.filter(g=>g.categoryId===c.id&&g.status!=='archived');return {c, all:all.length, done:all.filter(g=>g.status==='done').length}}).filter(r=>r.all);
+  if(rows.length){
+    h+=`<h2 class="section-title">За категоріями</h2><div class="card catstat">${rows.map(r=>`<div><div class="top"><span>${esc(r.c.emoji)} ${esc(r.c.name)}</span><span class="small">${r.done} з ${r.all}</span></div><div class="bar"><i style="width:${Math.round(r.done/r.all*100)}%;background:${esc(r.c.color)}"></i></div></div>`).join('')}</div>`;
+  }
+
+  // бейджі
+  const got=BADGES.filter(b=>state.badges[b.id]).length;
+  h+=`<h2 class="section-title">Нагороди · ${got} з ${BADGES.length}</h2><div class="badges">${BADGES.map(b=>{const u=state.badges[b.id];return `<div class="bdg ${u?'':'locked'}"><div class="e">${b.e}</div><div class="n">${b.n}</div><div class="d">${u?'Отримано '+fmtShort(new Date(u)):b.d}</div></div>`}).join('')}</div>`;
+
+  // стрічка
+  const feed=[...s.done].sort((a,b)=>(b.completedAt||'').localeCompare(a.completedAt||'')).slice(0,15);
+  h+=`<h2 class="section-title">Стрічка досягнень</h2>`;
+  h+= feed.length ? `<div class="card"><ul class="feed">${feed.map(g=>{const c=cat(g.categoryId);return `<li><div class="ic" style="background:color-mix(in srgb,${esc(c.color)} 16%,transparent)">${esc(c.emoji)}</div><div style="flex:1;min-width:0"><div style="font-weight:600;word-break:break-word">${esc(g.title)}</div><div class="small">${g.completedAt?new Date(g.completedAt).toLocaleDateString('uk-UA',{day:'numeric',month:'long',year:'numeric'}):''}</div></div><button class="icon-btn" data-action="open" data-id="${esc(g.id)}" aria-label="Відкрити">›</button></li>`}).join('')}</ul></div>`
+    : `<div class="empty" style="padding:24px"><div class="big">🌟</div><div>Завершуйте задачі, і вони з’являться тут</div></div>`;
+  return h+'<div style="height:24px"></div>';
+}
+
+function renderSettings(){
+  const t=state.settings.theme;
+  const sw={light:['#f5f6fa','#4f46e5','#e4e6ee'],dark:['#1b1c23','#8f89ff','#2d2f39'],pink:['#fff4f8','#d9488a','#f5d8e4']};
+  let h=syncCardHTML();
+  h+=`<h2 class="section-title">Тема</h2><div class="themes">${[['light','Світла'],['dark','Темна'],['pink','Рожева']].map(([k,l])=>`<button class="theme-opt ${t===k?'on':''}" data-action="theme" data-v="${k}"><div class="sw" style="background:${sw[k][0]}"><i style="background:${sw[k][1]}"></i><i style="background:${sw[k][2]}"></i></div>${l}</button>`).join('')}</div>`;
+
+  const gd=state.settings.gender||'';
+  h+=`<h2 class="section-title">Звертання</h2><div class="card">
+    <div class="small" style="margin-bottom:8px">Як застосунок звертається до тебе в похвалі та підказках</div>
+    <div class="segmented" style="margin:0">${[['f','Жіночий'],['m','Чоловічий']].map(([k,l])=>`<button class="${gd===k?'on':''}" data-action="gender" data-v="${k}">${l}</button>`).join('')}</div>
+    <div class="small" style="margin-top:8px">${hasGender()?`Приклад: «${G3('Сьогодні відпочивав','Сьогодні відпочивала','')}»`:'Обери, як до тебе звертатися'}</div></div>`;
+
+  const ns=notifState();
+  const nsText={granted:'Увімкнено ✅',denied:(NATIVE?'Вимкнено в налаштуваннях Android':'Заблоковано в браузері'),default:'Вимкнено',unsupported:'Не підтримується'}[ns];
+  h+=`<h2 class="section-title">Нагадування</h2><div class="card"><div class="list">
+    <div class="list-item"><div class="grow"><div style="font-weight:600">Сповіщення</div><div class="small">${nsText}</div></div>${ns==='default'?'<button class="btn primary" data-action="enable-notif">Увімкнути</button>':ns==='granted'?'<button class="btn" data-action="test-notif">Перевірити</button>':''}</div>
+    ${ns==='denied'?'<div class="small" style="padding:4px 0 10px">Щоб увімкнути: Налаштування Android → Застосунки → Трекер досягнень (або Chrome) → Сповіщення.</div>':''}
+    <div class="list-item"><div class="grow"><div style="font-weight:600">Щоденний підсумок о ${DAILY_HOUR}:00</div><div class="small">Нагадування відмітити, що зроблено за день</div></div>
+      <button class="switch ${state.settings.dailyReview!==false?'on':''}" data-action="toggle-daily" role="switch" aria-checked="${state.settings.dailyReview!==false}" aria-label="Щоденний підсумок"><i></i></button></div>
+    <div class="list-item"><div class="grow"><div style="font-weight:600">Типове нагадування</div><div class="small">Для нових задач</div></div>
+      <select class="input" style="width:auto;min-height:40px" data-action="default-reminder">${REMINDERS.map(([k,l])=>`<option value="${k}" ${state.settings.defaultReminder===k?'selected':''}>${l}</option>`).join('')}</select></div>
+  </div><div class="small" style="margin-top:8px">Застосунок перевіряє дедлайни щоразу, коли ви його відкриваєте, і у фоні, коли Android це дозволяє.</div></div>`;
+
+  h+=`<h2 class="section-title">💌 Листи від себе</h2><div class="card">
+    <div class="small" style="margin-bottom:10px">Напиши собі теплі слова. Вони чергуватимуться зі стандартною похвалою, коли ти виконуєш задачі.</div>
+    ${state.letters.length?`<div class="list" style="margin-bottom:10px">${state.letters.map(l=>`<div class="list-item"><div class="grow" style="word-break:break-word">«${esc(l.text)}»</div><button class="icon-btn" data-action="del-letter" data-id="${esc(l.id)}" aria-label="Видалити лист">${ICONS.trash}</button></div>`).join('')}</div>`:''}
+    <div class="add-sub" style="margin-top:0"><input class="input" id="letterInput" maxlength="200" placeholder="Напр.: Пишаюся тобою 💛" autocomplete="off"><button class="btn primary" data-action="add-letter" aria-label="Додати лист">${ICONS.plus.replace('<svg','<svg width="20" height="20"')}</button></div></div>`;
+
+  h+=`<h2 class="section-title">Святкові картинки</h2><div class="card">
+    <div class="small" style="margin-bottom:12px">Коли ви завершуєте задачу, з’являється випадкова картинка з цього списку. Якщо картинок немає, буде святковий смайлик 🎉</div>
+    <div class="pics">${images.map(i=>`<div class="p"><img src="${i.data}" alt="" loading="lazy"><button data-action="del-pic" data-id="${esc(i.id)}" aria-label="Видалити картинку">${ICONS.close}</button></div>`).join('')}
+    <button class="add" data-action="add-pic">${ICONS.plus}Додати</button></div></div>`;
+
+  h+=`<h2 class="section-title">Категорії</h2><div class="card"><div class="list">${state.categories.map(c=>{const n=state.goals.filter(g=>g.categoryId===c.id).length;return `<div class="list-item"><div class="emoji-box" style="--c:${esc(c.color)}">${esc(c.emoji)}</div><div class="grow"><div style="font-weight:600;color:${esc(c.color)}">${esc(c.name)}</div><div class="small">${n} ${plural(n,['задача','задачі','задач'])}</div></div><button class="icon-btn" data-action="edit-cat" data-id="${esc(c.id)}" aria-label="Редагувати">${ICONS.edit}</button><button class="icon-btn" data-action="del-cat" data-id="${esc(c.id)}" aria-label="Видалити">${ICONS.trash}</button></div>`}).join('')}</div>
+    <button class="btn ghost block" data-action="new-cat">${ICONS.plus.replace('<svg','<svg width="20" height="20"')} Нова категорія</button></div>`;
+
+  const lb=state.settings.lastBackup;
+  const old=!lb || (Date.now()-new Date(lb))>30*86400e3;
+  h+=`<h2 class="section-title">Резервна копія</h2><div class="card">
+    ${state.goals.length&&old?'<div class="notice warn"><div class="grow">Давно не було резервної копії. Збережіть файл, щоб не втратити дані.</div></div>':''}
+    <div class="small" style="margin-bottom:12px">Останнє збереження: ${lb?new Date(lb).toLocaleString('uk-UA',{day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'}):'ще не було'}.<br>Файл копії можна перенести на інший пристрій і там імпортувати.</div>
+    <div class="btn-row"><button class="btn primary" data-action="export">💾 Експорт у файл</button><button class="btn" data-action="import">📂 Імпорт з файлу</button></div></div>`;
+
+  h+=`<h2 class="section-title">Ознайомитись із функціями</h2><div class="card"><div class="small" style="margin-bottom:10px">Опис усіх можливостей застосунку та тур, який покаже, де що знаходиться</div>
+    <div class="btn-row" style="flex-direction:column"><button class="btn primary block" data-action="slides">📖 Опис усіх функцій</button><button class="btn block" data-action="tour">🧭 Пройти тур застосунком</button></div></div>`;
+  if(!NATIVE) h+=`<h2 class="section-title">Встановлення</h2><div class="card">${deferredInstall?'<button class="btn primary block" data-action="install">📲 Встановити на головний екран</button>':
+    (matchMedia('(display-mode: standalone)').matches?'<div>✅ Застосунок встановлено</div>':'<div class="small">У Chrome відкрийте меню ⋮ → «Додати на головний екран» або «Установити додаток».</div>')}</div>`;
+  h+=`<div class="small" style="text-align:center;margin:24px 0">Трекер досягнень · версія ${APP_VERSION}<br>Дані зберігаються лише на цьому пристрої</div>`;
+  return h;
+}
+
+/* ========== Модальні вікна ========== */
+/* Кнопка «Назад» на Android закриває верхнє вікно: тримаємо один запис історії, поки відкрите хоч одне вікно */
+const modalStack=[]; let ignorePop=0, histEntry=false, pendingBack=null;
+function ensureHistEntry(){ if(pendingBack){ clearTimeout(pendingBack); pendingBack=null; } if(!histEntry){ history.pushState({modal:1},''); histEntry=true; } }
+function releaseHistEntry(){ if(pendingBack) clearTimeout(pendingBack); pendingBack=setTimeout(()=>{ pendingBack=null; if(!modalStack.length && histEntry){ histEntry=false; ignorePop++; history.back(); } },40); }
+function openModal(renderFn, opts={}){
+  const ov=document.createElement('div'); ov.className='overlay'+(opts.dialog?' dialog':'')+(opts.cls?' '+opts.cls:'');
+  ov.innerHTML='<div class="sheet" role="dialog" aria-modal="true"></div>';
+  const sheet=ov.firstChild; $('#modals').appendChild(ov);
+  const m={ov, sheet, closed:false,
+    render(){ sheet.innerHTML=renderFn(m); opts.onRender&&opts.onRender(m); },
+    close(fromPop){ if(m.closed) return; m.closed=true; ov.classList.remove('open'); setTimeout(()=>ov.remove(),220);
+      const i=modalStack.indexOf(m); if(i>=0) modalStack.splice(i,1);
+      if(fromPop){ histEntry=false; if(modalStack.length) ensureHistEntry(); }
+      else if(!modalStack.length) releaseHistEntry();
+      opts.onClose&&opts.onClose(); }
+  };
+  ov.addEventListener('click',e=>{ if(e.target===ov) m.close(); });
+  m.render(); modalStack.push(m); ensureHistEntry();
+  requestAnimationFrame(()=>ov.classList.add('open'));
+  return m;
+}
+window.addEventListener('popstate',()=>{ if(ignorePop>0){ignorePop--;return;} const top=modalStack[modalStack.length-1]; if(top) top.close(true); });
+function dialog({title, text, buttons}){
+  return new Promise(res=>{
+    let val=null;
+    const m=openModal(()=>`<h2>${esc(title)}</h2>${text?`<p style="color:var(--muted);margin:6px 0 18px">${text}</p>`:''}<div class="btn-row" style="flex-direction:column">${buttons.map((b,i)=>`<button class="btn ${b.kind||''} block" data-i="${i}">${esc(b.label)}</button>`).join('')}</div>`, {dialog:true, onClose:()=>res(val)});
+    m.sheet.addEventListener('click',e=>{const b=e.target.closest('[data-i]'); if(!b) return; val=buttons[+b.dataset.i].value; m.close();});
+  });
+}
+const confirmDel=(title,text)=>dialog({title,text,buttons:[{label:'Видалити',value:true,kind:'danger'},{label:'Скасувати',value:false}]});
+
+/* ---- Перегляд задачі ---- */
+function openGoal(id){
+  const m=openModal(()=>{
+    const g=goalById(id); if(!g) return '<p>Задачу не знайдено</p>';
+    const c=cat(g.categoryId), p=progress(g), di=deadlineInfo(g), n=g.subtasks.length, dn=g.subtasks.filter(s=>s.done).length;
+    const rem=REMINDERS.find(r=>r[0]===g.reminder);
+    return `<div class="sheet-head"><span class="cat-pill" style="--c:${esc(c.color)}">${esc(c.emoji)} ${esc(c.name)}</span><button class="icon-btn" data-a="close" aria-label="Закрити">${ICONS.close}</button></div>
+    <h2>${esc(g.title)}</h2>
+    ${g.desc?`<p style="margin:4px 0 10px;white-space:pre-wrap;color:var(--muted)">${esc(g.desc)}</p>`:''}
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      ${g.deadline?`<span class="badge ${di&&g.status==='active'&&!di.overdue?di.cls:''}">📅 ${esc(fmtDate(g.deadline,true))}${g.time?' о '+g.time:''}${di&&g.status==='active'&&!di.overdue?' · '+esc(di.text):''}</span>${di&&di.overdue&&g.status==='active'?'<button class="badge resched" data-a="resched">🗓 Перепланувати</button>':''}`:'<span class="badge">Без дедлайну</span>'}
+      <span class="badge"><span class="prio ${g.priority}"></span> ${PRIORITIES[g.priority]} пріоритет</span>
+      ${g.deadline&&g.reminder!=='none'&&g.status==='active'?`<span class="badge">🔔 ${rem[1]}</span>`:''}
+      ${g.status==='done'&&di?`<span class="badge ${di.cls}">${di.text}</span>`:''}
+    </div>
+    <div class="progress-big"><div class="pct">${p}%</div><div class="grow"><div class="bar ${p===100?'ok':''}"><i style="width:${p}%"></i></div><div class="small" style="margin-top:6px">${n?`${dn} з ${n} ${plural(n,['кроку','кроків','кроків'])} виконано`:'Додайте кроки, щоб бачити прогрес'}</div></div></div>
+    ${g.status==='active'&&n&&dn===n?`<div class="notice info" style="margin-top:10px"><div class="grow"><b>Усі кроки виконано! 🎉</b>Завершити задачу?</div><button class="act" data-a="complete">Завершити</button></div>`:''}
+    <h3>Кроки</h3>
+    ${n?`<ul class="subs">${g.subtasks.map(s=>`<li class="${s.done?'done':''}"><button class="check ${s.done?'on':''}" data-a="toggle" data-sid="${esc(s.id)}" aria-label="${s.done?'Скасувати':'Виконати'}" ${g.status!=='active'?'disabled':''}>${ICONS.check}</button><span class="t">${esc(s.title)}</span>${g.status==='active'?`<button class="icon-btn" data-a="del-sub" data-sid="${esc(s.id)}" aria-label="Видалити крок">${ICONS.trash}</button>`:''}</li>`).join('')}</ul>`:'<div class="small">Кроків поки немає</div>'}
+    ${g.status==='active'?`<form class="add-sub" data-f="add-sub"><input class="input" name="t" placeholder="Додати крок…" maxlength="200" autocomplete="off"><button class="btn primary" aria-label="Додати">${ICONS.plus.replace('<svg','<svg width="20" height="20"')}</button></form>`:''}
+    <div class="btn-row" style="margin-top:22px">
+      ${g.status==='active'?`<button class="btn success" data-a="complete">✓ Завершити задачу</button>`:`<button class="btn" data-a="reopen">↺ Повернути в роботу</button>`}
+      ${g.status!=='done'?`<button class="btn" data-a="edit">✏️ Редагувати</button>`:''}
+    </div>
+    <div class="btn-row" style="margin-top:8px">
+      ${g.status!=='archived'?`<button class="btn" data-a="archive">🗄️ В архів</button>`:''}
+      <button class="btn danger" data-a="delete">Видалити</button>
+    </div>`;
+  }, {onClose:render});
+  m.sheet.addEventListener('click', async e=>{
+    const b=e.target.closest('[data-a]'); if(!b) return; const g=goalById(id); if(!g) return;
+    const a=b.dataset.a;
+    if(a==='close') return m.close();
+    if(a==='toggle'){ const s=g.subtasks.find(x=>x.id===b.dataset.sid); s.done=!s.done; s.doneAt=s.done?nowIso():null; touch(g); save(); m.render(); checkBadges(); return; }
+    if(a==='del-sub'){ g.subtasks=g.subtasks.filter(x=>x.id!==b.dataset.sid); touch(g); save(); m.render(); return; }
+    if(a==='complete'){ g.status='done'; g.completedAt=nowIso(); touch(g); save(); m.close(); showCelebration(g); return; }
+    if(a==='reopen'){ g.status='active'; g.completedAt=null; touch(g); save(); m.render(); toast('Задача знову активна'); return; }
+    if(a==='archive'){ g.status='archived'; touch(g); save(); m.close(); toast('Перенесено в архів',{label:'Скасувати',fn:()=>{g.status='active';save();render();}}); return; }
+    if(a==='edit'){ openGoalForm(id, ()=>m.render()); return; }
+    if(a==='resched'){ reschedule(id, ()=>m.render()); return; }
+    if(a==='delete'){ if(await confirmDel('Видалити задачу?','«'+esc(g.title)+'» буде видалено назавжди.')){ state.goals=state.goals.filter(x=>x.id!==id); save(); m.close(); toast('Задачу видалено'); } }
+  });
+  m.sheet.addEventListener('submit', e=>{
+    e.preventDefault(); const g=goalById(id); const inp=e.target.elements.t; const t=inp.value.trim(); if(!t) return;
+    g.subtasks.push({id:uid(),title:t,done:false,doneAt:null}); touch(g); save(); m.render();
+    const ni=$('[data-f=add-sub] input', m.sheet); ni&&ni.focus();
+  });
+}
+function touch(g){ g.updatedAt=nowIso(); }
+
+/* ---- Форма задачі ---- */
+function openGoalForm(id, after){
+  const g=id?goalById(id):null;
+  const catId = g ? g.categoryId : (ui.cat!=='all'?ui.cat:(state.categories[0]||{}).id);
+  const catOptions=(sel)=>state.categories.map(c=>`<option value="${esc(c.id)}" ${c.id===sel?'selected':''}>${esc(c.emoji)} ${esc(c.name)}</option>`).join('')+(sel&&!state.categories.some(c=>c.id===sel)?'':'')+`<option value="">📌 Без категорії</option><option value="__new">＋ Нова категорія…</option>`;
+  const subRow=(s)=>`<div class="sub-row" data-sid="${esc(s?s.id:'')}" data-done="${s&&s.done?1:0}" data-doneat="${esc(s&&s.doneAt||'')}"><input class="input" value="${esc(s?s.title:'')}" placeholder="Крок" maxlength="200"><button type="button" class="icon-btn" data-a="rm-sub" aria-label="Прибрати">${ICONS.close}</button></div>`;
+  const m=openModal(()=>`<div class="sheet-head"><h2>${g?'Редагувати задачу':'Нова задача'}</h2><button type="button" class="icon-btn" data-a="close" aria-label="Закрити">${ICONS.close}</button></div>
+    <form data-f="goal" novalidate>
+      <label class="field"><span>Назва *</span><input class="input" name="title" maxlength="140" value="${esc(g?g.title:'')}" placeholder="Напр.: Прочитати 12 книг" autocomplete="off"></label>
+      <div class="err" data-err hidden>Введіть назву задачі</div>
+      <label class="field"><span>Деталі задачі</span><textarea class="input" name="desc" maxlength="2000" placeholder="Що саме треба зробити, як зрозуміти, що задачу виконано…">${esc(g?g.desc:'')}</textarea></label>
+      <label class="field"><span>Категорія</span><select class="input" name="cat">${catOptions(catId)}</select></label>
+      <div class="two">
+        <div class="field"><span>Дедлайн</span><input type="hidden" name="deadline" value="${esc(g?g.deadline:'')}"><button type="button" class="input date-btn ${g&&g.deadline?'':'empty'}" data-a="pick-date">📅 <span data-date-label>${g&&g.deadline?esc(fmtDate(g.deadline,true)):'Обрати дату'}</span></button></div>
+        <div class="field"><span>Час (необов’язково)</span><input type="hidden" name="time" value="${esc(g?g.time:'')}"><button type="button" class="input date-btn ${g&&g.time?'':'empty'}" data-a="pick-time">🕐 <span data-time-label>${g&&g.time?esc(g.time):'Обрати час'}</span></button></div>
+      </div>
+      <div class="two">
+        <label class="field"><span>Пріоритет</span><select class="input" name="priority">${Object.entries(PRIORITIES).map(([k,l])=>`<option value="${k}" ${(g?g.priority:'med')===k?'selected':''}>${l}</option>`).join('')}</select></label>
+        <label class="field"><span>Нагадування</span><select class="input" name="reminder">${REMINDERS.map(([k,l])=>`<option value="${k}" ${(g?g.reminder:state.settings.defaultReminder)===k?'selected':''}>${l}</option>`).join('')}</select></label>
+      </div>
+      <div class="field"><span>Кроки (підзадачі)</span><div data-subs>${g&&g.subtasks.length?g.subtasks.map(subRow).join(''):subRow(null)}</div>
+        <button type="button" class="btn ghost" data-a="add-sub" style="align-self:flex-start">${ICONS.plus.replace('<svg','<svg width="18" height="18"')} Додати крок</button></div>
+      <button class="btn primary block" type="submit" style="margin-top:6px">${g?'Зберегти':'Створити задачу'}</button>
+    </form>`);
+  const form=$('form',m.sheet), sel=form.elements.cat; let prevCat=sel.value;
+  const setTime=v=>{ form.elements.time.value=v; const tb=$('[data-a=pick-time]',m.sheet); $('[data-time-label]',tb).textContent=v||'Обрати час'; tb.classList.toggle('empty',!v); };
+  sel.addEventListener('change',()=>{
+    if(sel.value!=='__new'){ prevCat=sel.value; return; }
+    sel.value=prevCat;
+    openCategoryEditor(null, c=>{ const o=document.createElement('option'); o.value=c.id; o.textContent=c.emoji+' '+c.name; sel.insertBefore(o, sel.querySelector('option[value=""]')); sel.value=c.id; prevCat=c.id; });
+  });
+  m.sheet.addEventListener('click',e=>{
+    const b=e.target.closest('[data-a]'); if(!b) return;
+    if(b.dataset.a==='close') m.close();
+    if(b.dataset.a==='add-sub'){ const box=$('[data-subs]',m.sheet); box.insertAdjacentHTML('beforeend',subRow(null)); box.lastElementChild.querySelector('input').focus(); }
+    if(b.dataset.a==='rm-sub'){ b.closest('.sub-row').remove(); }
+    if(b.dataset.a==='pick-date'){
+      openDatePicker(form.elements.deadline.value, v=>{
+        form.elements.deadline.value=v;
+        $('[data-date-label]',b).textContent = v ? fmtDate(v,true) : 'Обрати дату';
+        b.classList.toggle('empty', !v);
+        if(!v) setTime('');
+      });
+    }
+    if(b.dataset.a==='pick-time'){
+      if(!form.elements.deadline.value){ toast('Спершу оберіть дату дедлайну'); return; }
+      openTimePicker(form.elements.time.value, setTime);
+    }
+  });
+  form.addEventListener('keydown',e=>{ if(e.key==='Enter' && e.target.closest('.sub-row')){ e.preventDefault(); $('[data-a=add-sub]',m.sheet).click(); } });
+  form.addEventListener('submit',e=>{
+    e.preventDefault(); const f=form.elements; const title=f.title.value.trim();
+    if(!title){ $('[data-err]',m.sheet).hidden=false; f.title.focus(); return; }
+    const subs=$$('.sub-row',m.sheet).map(r=>({id:r.dataset.sid||uid(), title:r.querySelector('input').value.trim(), done:r.dataset.done==='1', doneAt:r.dataset.doneat||null})).filter(s=>s.title);
+    const data={title, desc:f.desc.value.trim(), categoryId:f.cat.value||null, deadline:f.deadline.value, time:f.deadline.value?f.time.value:'', priority:f.priority.value, reminder:f.reminder.value, subtasks:subs};
+    if(g){ Object.assign(g,data); touch(g); }
+    else state.goals.push({id:uid(), ...data, status:'active', createdAt:nowIso(), updatedAt:nowIso(), completedAt:null});
+    save(); m.close(); toast(g?'Зміни збережено':'Задачу створено 🎯');
+    if(!g && data.deadline && data.reminder!=='none' && notifState()==='default') setTimeout(()=>askNotif(),500);
+    checkBadges(); after&&after(); render();
+  });
+  if(!g && !tourActive) setTimeout(()=>form.elements.title.focus(),250);
+}
+async function askNotif(){
+  const v=await dialog({title:'Увімкнути нагадування?',text:'Застосунок надішле сповіщення, коли наближатиметься дедлайн.',buttons:[{label:'Увімкнути',value:true,kind:'primary'},{label:'Не зараз',value:false}]});
+  if(v) enableNotifications();
+}
+
+/* ---- Календар ---- */
+const MONTHS=['Січень','Лютий','Березень','Квітень','Травень','Червень','Липень','Серпень','Вересень','Жовтень','Листопад','Грудень'];
+function openDatePicker(value, onPick, title='Дедлайн'){
+  let sel=value||''; const view=sel?parseYmd(sel):new Date(); view.setDate(1);
+  const today=ymd(new Date());
+  const addDays=n=>{const d=new Date();d.setDate(d.getDate()+n);return ymd(d)};
+  const addMonth=()=>{const d=new Date();d.setMonth(d.getMonth()+1);return ymd(d)};
+  const m=openModal(()=>{
+    const y=view.getFullYear(), mo=view.getMonth(), first=(new Date(y,mo,1).getDay()+6)%7, days=new Date(y,mo+1,0).getDate();
+    let cells=['Пн','Вт','Ср','Чт','Пт','Сб','Нд'].map(w=>`<div class="wd">${w}</div>`).join('');
+    for(let i=0;i<first;i++) cells+='<div></div>';
+    for(let d=1;d<=days;d++){ const k=y+'-'+pad(mo+1)+'-'+pad(d); cells+=`<button type="button" data-d="${k}" class="${k===sel?'sel':''} ${k===today?'today':''} ${k<today?'past':''}">${d}</button>`; }
+    return `<div class="sheet-head"><h2>${esc(title)}</h2><button type="button" class="icon-btn" data-a="close" aria-label="Закрити">${ICONS.close}</button></div>
+      <div class="cal-quick"><button type="button" class="chip" data-d="${today}">Сьогодні</button><button type="button" class="chip" data-d="${addDays(1)}">Завтра</button><button type="button" class="chip" data-d="${addDays(7)}">Через тиждень</button><button type="button" class="chip" data-d="${addMonth()}">Через місяць</button></div>
+      <div class="cal-head"><button type="button" class="icon-btn" data-a="prev" aria-label="Попередній місяць"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button><b>${MONTHS[mo]} ${y}</b><button type="button" class="icon-btn" data-a="next" aria-label="Наступний місяць"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button></div>
+      <div class="cal-grid">${cells}</div>
+      ${sel?'<button type="button" class="btn ghost block" data-a="clear" style="margin-top:12px">Без дедлайну</button>':''}`;
+  }, {dialog:true});
+  m.sheet.addEventListener('click',e=>{
+    const b=e.target.closest('button'); if(!b) return;
+    if(b.dataset.d){ onPick(b.dataset.d); m.close(); return; }
+    const a=b.dataset.a;
+    if(a==='close') m.close();
+    if(a==='prev'){ view.setMonth(view.getMonth()-1); m.render(); }
+    if(a==='next'){ view.setMonth(view.getMonth()+1); m.render(); }
+    if(a==='clear'){ onPick(''); m.close(); }
+  });
+}
+
+/* ---- Годинник для вибору часу ---- */
+function openTimePicker(value, onPick){
+  let [h,mi]=(value||'12:00').split(':').map(Number); let stage='h';
+  const R_OUT=105, R_IN=68, C=130;
+  const pos=(k,r)=>{ const a=k*Math.PI/6; return `left:${C+r*Math.sin(a)}px;top:${C-r*Math.cos(a)}px`; };
+  const m=openModal(()=>{
+    let nums='', handLen, handAng;
+    if(stage==='h'){
+      for(let k=0;k<12;k++){ const vo=k===0?12:k, vi=k===0?0:k+12;
+        nums+=`<button type="button" class="n ${h===vo?'sel':''}" style="${pos(k,R_OUT)}" data-h="${vo}">${vo}</button>`;
+        nums+=`<button type="button" class="n inner ${h===vi?'sel':''}" style="${pos(k,R_IN)}" data-h="${vi}">${pad(vi)}</button>`; }
+      const inner = h===0 || h>12; handLen=inner?R_IN:R_OUT; handAng=(h%12)*30;
+    } else {
+      for(let k=0;k<12;k++){ const v=k*5; nums+=`<button type="button" class="n ${mi===v?'sel':''}" style="${pos(k,R_OUT)}" data-m="${v}">${pad(v)}</button>`; }
+      handLen=R_OUT; handAng=mi*6;
+    }
+    return `<div class="sheet-head"><h2>Час дедлайну</h2><button type="button" class="icon-btn" data-a="close" aria-label="Закрити">${ICONS.close}</button></div>
+      <div class="cal-quick" style="justify-content:center">${['09:00','12:00','15:00','18:00','21:00'].map(t=>`<button type="button" class="chip" data-quick="${t}">${t}</button>`).join('')}</div>
+      <div class="clock-display"><button type="button" class="${stage==='h'?'on':''}" data-a="sh">${pad(h)}</button>:<button type="button" class="${stage==='m'?'on':''}" data-a="sm">${pad(mi)}</button></div>
+      <div class="small" style="text-align:center;margin:-6px 0 10px">${stage==='h'?'Оберіть годину':'Оберіть хвилини'}</div>
+      <div class="dial"><div class="hand" style="height:${handLen}px;transform:rotate(${handAng}deg)"></div><div class="dot"></div>${nums}</div>
+      <div class="btn-row" style="margin-top:18px">${value?'<button type="button" class="btn ghost" data-a="clear">Без часу</button>':''}<button type="button" class="btn primary" data-a="ok">Готово</button></div>`;
+  }, {dialog:true});
+  m.sheet.addEventListener('click',e=>{
+    const b=e.target.closest('button'); if(!b) return;
+    if(b.dataset.h!==undefined){ h=+b.dataset.h; stage='m'; m.render(); return; }
+    if(b.dataset.m!==undefined){ mi=+b.dataset.m; m.render(); return; }
+    if(b.dataset.quick){ onPick(b.dataset.quick); m.close(); return; }
+    const a=b.dataset.a;
+    if(a==='close') m.close();
+    if(a==='sh'){ stage='h'; m.render(); }
+    if(a==='sm'){ stage='m'; m.render(); }
+    if(a==='clear'){ onPick(''); m.close(); }
+    if(a==='ok'){ onPick(pad(h)+':'+pad(mi)); m.close(); }
+  });
+}
+
+/* ---- Список сповіщень ---- */
+async function openBellList(){
+  await loadFeed();
+  const icon={daily:'📝',reminder:'⏰',overdue:'🗓'};
+  const when=t=>{ const d=new Date(t); return fmtShort(d)+', '+pad(d.getHours())+':'+pad(d.getMinutes()); };
+  const m=openModal(()=>`<div class="sheet-head"><h2>Сповіщення</h2><button class="icon-btn" data-a="close" aria-label="Закрити">${ICONS.close}</button></div>
+    ${feed.length?`<div class="btn-row" style="margin-bottom:10px">${feed.some(f=>!f.read)?'<button class="btn ghost" data-a="read-all">Позначити всі прочитаними</button>':''}<button class="btn ghost" data-a="clear-all">Очистити</button></div>`:''}
+    ${feed.length?feed.map((f,i)=>`<button class="notif ${f.read?'':'unread'}" data-i="${i}"><div class="ic">${icon[f.type]||'🔔'}</div><div style="flex:1;min-width:0"><div class="tt">${esc(f.title)}</div>${f.body?`<div class="small">${esc(f.body)}</div>`:''}<div class="small" style="margin-top:2px">${when(f.at)}</div></div></button>`).join('')
+      :`<div class="empty" style="padding:30px 10px"><div class="big">🔔</div><h3>Сповіщень поки немає</h3><div>Щодня о ${DAILY_HOUR}:00 тут з’являтиметься нагадування підбити підсумки дня</div></div>`}`);
+  m.sheet.addEventListener('click',async e=>{
+    const b=e.target.closest('button'); if(!b) return;
+    if(b.dataset.a==='close') return m.close();
+    if(b.dataset.a==='read-all'){ feed.forEach(f=>f.read=true); await saveFeed(); m.render(); return; }
+    if(b.dataset.a==='clear-all'){ feed=[]; await saveFeed(); m.render(); return; }
+    if(b.dataset.i!==undefined){
+      const f=feed[+b.dataset.i]; f.read=true; await saveFeed(); m.close();
+      if(f.type==='daily') openReview();
+      else if(f.goalId && goalById(f.goalId)){ openGoal(f.goalId); if(f.type==='overdue' && goalById(f.goalId).status==='active') reschedule(f.goalId); }
+      else toast('Цю задачу вже видалено');
+    }
+  });
+}
+
+/* ---- Щоденний підсумок: «Що зроблено сьогодні?» ---- */
+function reviewGoals(){
+  const act=state.goals.filter(g=>g.status==='active');
+  const pr={high:0,med:1,low:2};
+  return act.sort((a,b)=>{
+    const da=a.deadline?deadlineEnd(a).getTime():Infinity, db=b.deadline?deadlineEnd(b).getTime():Infinity;
+    return da-db || pr[a.priority]-pr[b.priority] || a.createdAt.localeCompare(b.createdAt);
+  }).slice(0,10);
+}
+async function openReview(){
+  if(modalStack.some(x=>x.isReview)) return;
+  // позначаємо щоденні сповіщення прочитаними
+  if(!tourActive){ await loadFeed(); let ch=false; feed.forEach(f=>{ if(f.type==='daily'&&!f.read){ f.read=true; ch=true; } }); if(ch) await saveFeed(); }
+  const list=reviewGoals();
+  const sel=new Set(); const open=new Set(list.filter(g=>g.subtasks.length).slice(0,1).map(g=>g.id));
+  const pending={};   // нові кроки, додані на цьому екрані: {goalId: [{id,title}]}
+  const pendCount=()=>Object.values(pending).reduce((a,x)=>a+x.length,0);
+  const defCat=(state.categories[0]||{}).id||'';
+  const rows=[{id:uid(), text:'', cat:defCat, done:true}];   // нові задачі, яких немає у списку
+  const filled=()=>rows.filter(r=>r.text.trim());
+  const changes=()=>sel.size+filled().length+[...Object.entries(pending)].reduce((a,[gid,x])=>a+x.filter(s=>!sel.has('s|'+gid+'|'+s.id)).length,0);
+  const chk=(on,locked)=>`<span class="check ${on?'on':''} ${locked?'locked':''}">${ICONS.check}</span>`;
+  const catOpts=v=>state.categories.map(c=>`<option value="${esc(c.id)}" ${c.id===v?'selected':''}>${esc(c.emoji)} ${esc(c.name)}</option>`).join('')+`<option value="" ${v===''?'selected':''}>📌 Без категорії</option>`;
+  const confirmLabel=()=>changes()?`Підтвердити (${changes()})`:'Відміть виконане';
+  const chev=open=>`<span class="chev ${open?'open':''}"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>`;
+  const addStepForm=gid=>`<form class="add-sub rv-add" data-addstep="${esc(gid)}"><input class="input" name="t" placeholder="Додати крок…" maxlength="200" autocomplete="off"><button class="btn primary" aria-label="Додати крок">${ICONS.plus.replace('<svg','<svg width="20" height="20"')}</button></form>`;
+  const m=openModal(()=>{
+    let h=`<div class="sheet-head"><h2>Що зроблено сьогодні? ✨</h2><button class="icon-btn" data-a="close" aria-label="Закрити">${ICONS.close}</button></div>`;
+    h+= list.length
+      ? `<p class="small" style="margin:0 0 14px">Відміть задачі та кроки, які вдалося зробити, і натисни «Підтвердити». До будь-якої задачі можна одразу додати новий крок. Тут ${list.length} ${plural(list.length,['найближча задача','найближчі задачі','найближчих задач'])} за дедлайном.</p>`
+      : `<p class="small" style="margin:0 0 14px">Активних задач немає 🌿 Але нижче можна записати, що ${G3('ти зробив','ти зробила','вдалося зробити')} сьогодні.</p>`;
+    for(const g of list){
+      const c=cat(g.categoryId);
+      const meta=`${esc(c.emoji)} ${esc(c.name)}${g.deadline?' · 📅 '+fmtShort(parseYmd(g.deadline))+(g.time?' '+g.time:''):''}`;
+      const pend=pending[g.id]||[], allSubs=[...g.subtasks, ...pend.map(p=>({...p,done:false,isNew:true}))];
+      const isOpen=open.has(g.id);
+      if(allSubs.length){
+        const dn=g.subtasks.filter(s=>s.done).length, picked=allSubs.filter(s=>sel.has('s|'+g.id+'|'+s.id)).length;
+        h+=`<div class="rv-item"><button class="rv-row" data-a="expand" data-id="${esc(g.id)}">${chev(isOpen)}
+          <div class="grow"><div class="tt">${esc(g.title)}</div><div class="small">${meta} · ${dn} з ${allSubs.length} ${plural(allSubs.length,['кроку','кроків','кроків'])}${picked?` · <b style="color:var(--success)">+${picked}</b>`:''}${pend.length?` · <b style="color:var(--primary)">нових: ${pend.length}</b>`:''}</div></div></button>
+          ${isOpen?`<div class="rv-subs">${allSubs.map(s=>{const k='s|'+g.id+'|'+s.id, on=s.done||sel.has(k);
+            if(s.done) return `<div class="rv-row done">${chk(true,true)}<div class="grow"><div class="tt">${esc(s.title)}</div></div></div>`;
+            return `<div class="rv-row ${sel.has(k)?'sel':''}"><button class="rv-pick" data-a="pick" data-k="${esc(k)}">${chk(on)}<div class="grow"><div class="tt">${esc(s.title)}${s.isNew?' <span class="badge" style="font-size:11px">новий</span>':''}</div></div></button>${s.isNew?`<button class="icon-btn" data-a="rm-step" data-g="${esc(g.id)}" data-s="${esc(s.id)}" aria-label="Прибрати новий крок">${ICONS.close}</button>`:''}</div>`;}).join('')}
+            ${addStepForm(g.id)}</div>`:''}</div>`;
+      } else {
+        const k='g|'+g.id;
+        h+=`<div class="rv-item"><div class="rv-row ${sel.has(k)?'sel':''}"><button class="rv-pick" data-a="pick" data-k="${esc(k)}">${chk(sel.has(k))}<div class="grow"><div class="tt">${esc(g.title)}</div><div class="small">${meta}</div></div></button>
+          <button class="btn ghost" style="min-height:36px;padding:6px 10px;font-size:14px" data-a="open-add" data-id="${esc(g.id)}">＋ крок</button></div>
+          ${isOpen?`<div class="rv-subs">${addStepForm(g.id)}</div>`:''}</div>`;
+      }
+    }
+    h+=`<h3 style="margin-top:22px">Ще щось зроблено?</h3>
+      <p class="small" style="margin:-2px 0 10px">Додай задачі, яких немає у списку: лише назва й категорія. Галочка ✓ означає, що задачу вже виконано сьогодні. Зніми її, щоб просто додати задачу на потім.</p>
+      ${rows.map(r=>`<div class="nt-row" data-r="${r.id}">
+        <button type="button" class="check ${r.done?'on':''}" data-a="nt-done" aria-label="${r.done?'Виконано':'Не виконано'}">${ICONS.check}</button>
+        <input class="input nt-text" data-nt="text" value="${esc(r.text)}" placeholder="Напр.: Дзвінок бабусі" maxlength="140" autocomplete="off">
+        <select class="input nt-cat" data-nt="cat" aria-label="Категорія">${catOpts(r.cat)}</select>
+        <button type="button" class="icon-btn nt-rm" data-a="nt-rm" aria-label="Прибрати рядок">${ICONS.close}</button></div>`).join('')}
+      <button type="button" class="btn ghost" data-a="nt-add">${ICONS.plus.replace('<svg','<svg width="18" height="18"')} Додати ще задачу</button>`;
+    h+=`<div class="rv-foot"><button class="btn primary block" data-a="confirm" ${changes()?'':'disabled'}>${confirmLabel()}</button>
+      <button class="btn block rest-btn" data-a="rest">🌿 ${G3('Сьогодні відпочивав','Сьогодні відпочивала','Сьогодні відпочивав(-ла)')}</button></div>`;
+    return h;
+  }, {cls:'review'});
+  m.isReview=true;
+  const rowOf=el=>rows.find(r=>r.id===el.closest('[data-r]').dataset.r);
+  const refreshBtn=()=>{ const b=$('[data-a=confirm]',m.sheet); b.disabled=!changes(); b.textContent=confirmLabel(); };
+  m.sheet.addEventListener('input',e=>{ if(e.target.dataset.nt==='text'){ rowOf(e.target).text=e.target.value; refreshBtn(); } });
+  m.sheet.addEventListener('change',e=>{ if(e.target.dataset.nt==='cat') rowOf(e.target).cat=e.target.value; });
+  m.sheet.addEventListener('keydown',e=>{ if(e.key==='Enter' && e.target.dataset.nt==='text'){ e.preventDefault(); $('[data-a=nt-add]',m.sheet).click(); } });
+  m.sheet.addEventListener('submit',e=>{
+    const f=e.target.closest('[data-addstep]'); if(!f) return; e.preventDefault();
+    const gid=f.dataset.addstep, t=f.elements.t.value.trim(); if(!t){ f.elements.t.focus(); return; }
+    (pending[gid]=pending[gid]||[]).push({id:uid(), title:t});
+    sel.delete('g|'+gid);            // задача тепер має кроки — відмічаються кроки, а не вся задача
+    open.add(gid); m.render();
+    const nf=$(`[data-addstep="${CSS.escape(gid)}"] input`, m.sheet); nf&&nf.focus();
+  });
+  // застосувати все відмічене; повертає кількість виконаного
+  async function apply(){
+    const t=nowIso(); let n=0, added=0; const touched=new Set();
+    for(const [gid,arr] of Object.entries(pending)){ const g=goalById(gid); if(!g) continue; for(const p of arr) g.subtasks.push({id:p.id,title:p.title,done:false,doneAt:null}); touch(g); }
+    for(const k of sel){
+      const [kind,gid,sid]=k.split('|'); const g=goalById(gid); if(!g) continue;
+      if(kind==='g' && g.status==='active' && !g.subtasks.length){ g.status='done'; g.completedAt=t; touch(g); n++; }
+      if(kind==='s'){ const s=g.subtasks.find(x=>x.id===sid); if(s&&!s.done){ s.done=true; s.doneAt=t; touch(g); touched.add(g.id); n++; } }
+    }
+    for(const r of filled()){
+      state.goals.push({id:uid(), title:r.text.trim(), desc:'', categoryId:r.cat||null, deadline:'', time:'', priority:'med', reminder:'none',
+        status:r.done?'done':'active', subtasks:[], createdAt:t, updatedAt:t, completedAt:r.done?t:null});
+      if(r.done) n++; else added++;
+    }
+    save(); m.close(); render();
+    // задачі, в яких тепер виконано всі кроки — питаємо, чи закрити
+    const full=[...touched].map(goalById).filter(g=>g&&g.status==='active'&&g.subtasks.length&&g.subtasks.every(s=>s.done));
+    if(full.length){
+      const closeIds=await askCloseGoals(full);
+      for(const id of closeIds){ const g=goalById(id); g.status='done'; g.completedAt=t; touch(g); n++; }
+      if(closeIds.size){ save(); render(); }
+    }
+    return {n, added};
+  }
+  m.sheet.addEventListener('click',async e=>{
+    const b=e.target.closest('[data-a]'); if(!b) return; const a=b.dataset.a;
+    if(a==='close') return m.close();
+    if(a==='expand'){ const id=b.dataset.id; open.has(id)?open.delete(id):open.add(id); m.render(); return; }
+    if(a==='open-add'){ const id=b.dataset.id; open.has(id)?open.delete(id):open.add(id); m.render(); const nf=$(`[data-addstep="${CSS.escape(id)}"] input`, m.sheet); nf&&nf.focus(); return; }
+    if(a==='pick'){ const k=b.dataset.k; sel.has(k)?sel.delete(k):sel.add(k); m.render(); return; }
+    if(a==='rm-step'){ const gid=b.dataset.g; pending[gid]=(pending[gid]||[]).filter(p=>p.id!==b.dataset.s); sel.delete('s|'+gid+'|'+b.dataset.s); if(!pending[gid].length) delete pending[gid]; m.render(); return; }
+    if(a==='nt-done'){ const r=rowOf(b); r.done=!r.done; m.render(); return; }
+    if(a==='nt-rm'){ const r=rowOf(b); rows.splice(rows.indexOf(r),1); if(!rows.length) rows.push({id:uid(),text:'',cat:defCat,done:true}); m.render(); return; }
+    if(a==='nt-add'){ const last=rows[rows.length-1]; rows.push({id:uid(), text:'', cat:last?last.cat:defCat, done:true}); m.render(); const ins=$$('.nt-text',m.sheet); ins[ins.length-1].focus(); return; }
+    if(a==='confirm'){
+      const {n, added}=await apply();
+      if(n) showPraise(n);
+      else toast(added?`Додано ${added} ${plural(added,['задачу','задачі','задач'])}`:'Збережено');
+    }
+    if(a==='rest'){
+      const {n}=await apply();
+      showRest(n);
+    }
+  });
+}
+function askCloseGoals(goals){
+  return new Promise(res=>{
+    const pick=new Set(goals.map(g=>g.id)); let result=new Set();
+    const one=goals.length===1;
+    const m=openModal(()=>`<div class="hero" style="font-size:56px;text-align:center;margin:4px 0">✅</div>
+      <h2 style="text-align:center">${one?'Усі кроки виконано!':'У цих задачах виконано всі кроки!'}</h2>
+      <p class="small" style="text-align:center;margin:4px 0 14px">${one?'Закрити цю задачу як виконану?':'Відміть, які задачі закрити як виконані.'}</p>
+      ${one?`<div class="rv-item"><div class="rv-row"><div class="grow"><div class="tt">${esc(goals[0].title)}</div><div class="small">${goals[0].subtasks.length} з ${goals[0].subtasks.length} ${plural(goals[0].subtasks.length,['кроку','кроків','кроків'])}</div></div></div></div>`
+        : goals.map(g=>`<div class="rv-item"><button class="rv-row ${pick.has(g.id)?'sel':''}" data-pick="${esc(g.id)}"><span class="check ${pick.has(g.id)?'on':''}">${ICONS.check}</span><div class="grow"><div class="tt">${esc(g.title)}</div><div class="small">${g.subtasks.length} з ${g.subtasks.length} ${plural(g.subtasks.length,['кроку','кроків','кроків'])}</div></div></button></div>`).join('')}
+      <div class="btn-row" style="flex-direction:column;margin-top:14px">
+        <button class="btn success block" data-a="yes" ${pick.size?'':'disabled'}>${one?'Так, закрити задачу':`Закрити вибрані (${pick.size})`}</button>
+        <button class="btn block" data-a="no">Ні, залишити активн${one?'ою':'ими'}</button></div>`, {dialog:true, onClose:()=>res(result)});
+    m.sheet.addEventListener('click',e=>{
+      const p=e.target.closest('[data-pick]'); if(p){ const id=p.dataset.pick; pick.has(id)?pick.delete(id):pick.add(id); m.render(); return; }
+      const b=e.target.closest('[data-a]'); if(!b) return;
+      if(b.dataset.a==='yes'){ result=new Set(pick); m.close(); }
+      if(b.dataset.a==='no'){ m.close(); }
+    });
+  });
+}
+function showPraise(n){
+  const mega=n>3;
+  const pic = images.length ? images[Math.floor(Math.random()*images.length)].data : null;
+  const small=[['Молодець! 🌟','Ще один крок уперед. Так тримати!'],['Чудово! 💛','Кожна виконана справа — це маленька перемога.'],['Супер! 🌸','Ти рухаєшся вперед, і це видно!']];
+  const pick=small[Math.floor(Math.random()*small.length)];
+  const word=`${n} ${plural(n,['справу','справи','справ'])}`;
+  const letter=nextLetter();
+  const m=openModal(()=> mega
+    ? `${pic?`<img class="pic" src="${pic}" alt="">`:''}<div class="emrow">🎉🥳🌟</div><h2>НЕЙМОВІРНО!!!</h2>
+       <div class="gname">Сьогодні виконано ${word}!</div>
+       ${letter?letterCard(letter):`<div class="small" style="margin:6px 0 4px">Ти — суперзірка 🌟 Такий день заслуговує на оплески 👏👏👏</div>`}
+       <div class="emrow">💛🌈🏆🌸👏</div>
+       <button class="btn primary block" data-a="close" style="margin-top:8px">${G3('Я молодець! 🥳','Я молодчинка! 🥳','Так тримати! 🥳')}</button>`
+    : `${pic?`<img class="pic" src="${pic}" alt="">`:'<div class="hero">🌟</div>'}
+       ${letter?letterCard(letter):`<h2>${pick[0]}</h2>`}
+       <div class="gname">${n===1?'Виконано 1 справу':'Виконано '+word}</div>
+       ${letter?'<div style="height:14px"></div>':`<div class="small" style="margin-bottom:20px">${pick[1]}</div>`}
+       <button class="btn primary block" data-a="close">Дякую! 💛</button>`,
+    {cls:'celebrate'+(mega?' mega':''), onClose:()=>{ render(); checkBadges(); }});
+  m.sheet.addEventListener('click',e=>{ if(e.target.closest('[data-a=close]')) m.close(); });
+  celebrate();
+  if(mega){ emojiBurst(); setTimeout(emojiBurst,600); setTimeout(()=>{celebrate();emojiBurst();},1200); try{ navigator.vibrate&&navigator.vibrate([60,50,60,50,120]); }catch(e){} }
+}
+/* ---- Інтерактивний тур: підсвічує справжні елементи застосунку ---- */
+let tourActive=false;
+const TOUR=[
+  {center:true, t:'Привіт! 👋', x:'Проведу тебе застосунком і покажу, де що знаходиться. Це займе хвилинку. Гортай кнопкою «Далі».'},
+  {view:'goals', sel:'#fab', t:'➕ Нова задача', x:'Натисни «+», щоб створити задачу. Зараз покажу, що там усередині.'},
+  {ctx:'form', sel:'[name=title]', up:'.field', also:[['[name=cat]','.field']], t:'✏️ Про що задача', x:'Назва — єдине обов’язкове поле. Додай деталі й обери категорію, якщо хочеш.'},
+  {ctx:'form', sel:'[data-a=pick-date]', up:'.two', also:[['[name=priority]','.two'],['[data-subs]','.field']], t:'📅 Дедлайн, нагадування й кроки', x:'Дата обирається в календарі, а час — на циферблаті. Застосунок нагадає про дедлайн, а велику задачу можна розбити на маленькі кроки.'},
+  {view:'goals', sel:'.segmented', also:[['.chips']], t:'🗂️ Фільтри', x:'Перемикай активні, виконані й архів, а кнопками нижче показуй лише одну категорію. Власні категорії створюються в Налаштуваннях.'},
+  {view:'goals', sel:`.goal-card[data-id="${TOUR_SAMPLE}"]`, t:'📋 Картка задачі', x:'Категорія, прогрес кроків і дедлайн. Натисни на картку, щоб відкрити задачу. (Це приклад, він зникне після туру.)'},
+  {view:'goals', sel:`.goal-card[data-id="${TOUR_SAMPLE}"] .badge.resched`, pad:6, t:'🗓 Перепланувати', x:'Якщо дедлайн минув — жодних докорів. Натисни й обери нову дату.'},
+  {ctx:'detail', sel:'.subs', also:[['[data-f=add-sub]']], t:'✅ Кроки', x:'Відмічай зроблені кроки квадратиком і додавай нові будь-коли.'},
+  {ctx:'detail', sel:'.btn.success[data-a=complete]', t:'✅ Завершити задачу', x:'Натисни, коли все готово. Застосунок нагадає тобі, що твої досягнення заслуговують на визнання 💛'},
+  {view:'goals', sel:'#bell', pad:6, t:'🔔 Дзвіночок', x:'Тут усі сповіщення. Щовечора о 21:00 приходить нагадування підбити підсумок дня.'},
+  {ctx:'review', sel:'.rv-item', t:'📝 Підсумок дня', x:'Відміть, що вдалося зробити сьогодні. Задачі розгортаються стрілочкою, і сюди ж можна одразу додати новий крок.'},
+  {ctx:'review', sel:'.nt-row', t:'🆕 Ще щось зроблено?', x:'Запиши справи, яких не було в списку: назва й категорія.'},
+  {ctx:'review', sel:'.rv-foot', t:'Підтвердити або відпочити', x:'Підтверди виконане, і застосунок нагадає тобі, що твої досягнення заслуговують на визнання. А якщо сьогодні був відпочинок, натисни 🌿, бо це теж добре.'},
+  {view:'stats', sel:'.stat-row', t:'🏆 Досягнення', x:'Скільки всього вже зроблено: задачі, кроки, дні відпочинку.'},
+  {view:'stats', sel:'.weeks', up:'.card', t:'📊 Виконані задачі', x:'Графік твого темпу. Перемикай «Дні», «Тижні» й «Місяці», щоб подивитися на прогрес з різної відстані.'},
+  {view:'stats', sel:'.badges', t:'🏅 Нагороди', x:'Відкриваються самі, поки ти виконуєш задачі.'},
+  {view:'settings', sel:'.sync-card', t:'☁️ Синхронізація', x:'Створи акаунт з поштою й паролем, і твої задачі будуть однакові на телефоні, планшеті й у браузері. Дані бачиш тільки ти.'},
+  {view:'settings', sel:'.themes', also:[['[data-action=gender]','.card']], t:'🎨 Вигляд і звертання', x:'Обери тему (світла, темна чи рожева) і як застосунок до тебе звертається: у жіночому чи чоловічому роді.'},
+  {view:'settings', sel:'[data-action=toggle-daily]', up:'.card', t:'🔔 Нагадування', x:'Увімкни сповіщення та щоденний підсумок о 21:00.'},
+  {view:'settings', sel:'#letterInput', up:'.card', also:[['.pics','.card']], t:'💌 Листи від себе й картинки', x:'Напиши собі теплі слова й додай картинки, які тебе радують. Вони з’являтимуться, коли ти виконуєш задачі.'},
+  {view:'settings', sel:'[data-action=export]', up:'.card', t:'💾 Резервна копія', x:'Раз на тиждень зберігай копію у файл, щоб дані не загубились.'},
+  {center:true, last:true, t:'Готово! ✨', x:'Тепер ти знаєш, де що знаходиться. Опис функцій і цей тур завжди є в Налаштуваннях → «Ознайомитись із функціями». Створи першу задачу, і почнімо збирати перемоги 💛'},
+];
+function startTour(first){
+  if(tourActive) return; tourActive=true;
+  const prev={view:ui.view, status:ui.status, cat:ui.cat};
+  ui.status='active'; ui.cat='all';
+  // тимчасова задача-приклад (дедлайн учора, щоб показати «Перепланувати»)
+  const y=new Date(); y.setDate(y.getDate()-1);
+  state.goals=state.goals.filter(g=>g.id!==TOUR_SAMPLE);
+  state.goals.unshift({id:TOUR_SAMPLE, title:'Приклад: прочитати книгу', desc:'', categoryId:(state.categories[0]||{}).id||null, deadline:ymd(y), time:'',
+    priority:'med', reminder:'none', status:'active', createdAt:nowIso(), updatedAt:nowIso(), completedAt:null,
+    subtasks:[{id:'ts1',title:'Розділ 1',done:true,doneAt:nowIso()},{id:'ts2',title:'Розділ 2',done:false,doneAt:null},{id:'ts3',title:'Розділ 3',done:false,doneAt:null}]});
+  const root=document.createElement('div'); root.className='tour';
+  root.innerHTML='<div class="tour-hole"></div><div class="tour-tip" role="dialog" aria-live="polite"></div>';
+  document.body.appendChild(root);
+  const hole=$('.tour-hole',root), tip=$('.tour-tip',root);
+  let i=0, ctx=null, cur=null;
+  const closeAll=()=>{ while(modalStack.length) modalStack[modalStack.length-1].close(); };
+  async function setCtx(c){
+    if(c===ctx) return false;
+    closeAll(); ctx=c;
+    if(c==='form') openGoalForm(null);
+    else if(c==='detail') openGoal(TOUR_SAMPLE);
+    else if(c==='review') await openReview();
+    return true;
+  }
+  function place(){
+    const s=TOUR[i], vw=innerWidth, vh=innerHeight, w=Math.min(360, vw-24);
+    tip.style.width=w+'px';
+    if(!cur){ hole.style.cssText=`left:${vw/2}px;top:${vh/2}px;width:0;height:0`; tip.style.left=(vw-w)/2+'px'; tip.style.top=Math.max(12,(vh-tip.offsetHeight)/2)+'px'; return; }
+    const rs=cur.map(e=>e.getBoundingClientRect()), p=s.pad??8;
+    const L=Math.min(...rs.map(x=>x.left)), T=Math.max(4,Math.min(...rs.map(x=>x.top))), R=Math.max(...rs.map(x=>x.right)), B=Math.min(vh-4,Math.max(...rs.map(x=>x.bottom)));
+    const r={left:L, top:T, right:R, bottom:B, width:R-L, height:Math.max(0,B-T)};
+    hole.style.cssText=`left:${r.left-p}px;top:${r.top-p}px;width:${r.width+p*2}px;height:${r.height+p*2}px`;
+    const th=tip.offsetHeight; let top;
+    if(r.bottom+p+12+th < vh-8) top=r.bottom+p+12;
+    else if(r.top-p-12-th > 8) top=r.top-p-12-th;
+    else top=vh-th-12;
+    tip.style.top=top+'px';
+    tip.style.left=Math.min(Math.max(12, r.left+r.width/2-w/2), vw-w-12)+'px';
+  }
+  let busy=false;
+  async function show(dir=1){
+    busy=true; try{ await showInner(dir); } finally{ busy=false; }
+  }
+  async function showInner(dir){
+    const s=TOUR[i];
+    if(s.view && ui.view!==s.view){ await setCtx(null); ui.view=s.view; render(); }
+    const changed = s.center ? await setCtx(null) : await setCtx(s.ctx||null);
+    await new Promise(r=>setTimeout(r, changed?380:40));
+    cur=null;
+    if(!s.center){
+      let el=null; for(const q of s.sel.split(',')){ el=document.querySelector(q.trim()); if(el) break; }
+      if(el && s.up) el=el.closest(s.up)||el;
+      if(!el){ const n=i+dir; if(n>=0 && n<TOUR.length){ i=n; return showInner(dir); } }
+      if(el){
+        const extra=(s.also||[]).map(([q,u])=>{ const e=document.querySelector(q); return e&&u?(e.closest(u)||e):e; }).filter(Boolean);
+        // додаємо заголовок блоку (і його короткий опис), що стоїть одразу над елементом
+        const withHeader=e=>{ const out=[e]; let p=e.previousElementSibling;
+          while(p && p.matches('p.small')){ out.unshift(p); p=p.previousElementSibling; }
+          if(p && p.matches('h2.section-title, h3')) out.unshift(p);
+          return out.length>1 && out[0].matches('h2, h3') ? out : [e]; };
+        cur=[...new Set([el,...extra].flatMap(withHeader))];
+        const topmost=cur.reduce((a,b)=>a.getBoundingClientRect().top<=b.getBoundingClientRect().top?a:b);
+        (cur.length>1?topmost:el).scrollIntoView({block: cur.length>1?'start':'center', behavior:'instant'});
+        await new Promise(r=>requestAnimationFrame(()=>setTimeout(r,60)));
+      }
+    }
+    tip.innerHTML=`<div class="small" style="font-weight:700;margin-bottom:4px">${i+1} / ${TOUR.length}</div>
+      <div class="tt">${s.t}</div><div class="tx">${s.x}</div>
+      <div class="tour-nav">${s.last?'':'<button class="btn ghost" data-t="skip">Пропустити</button>'}<span style="flex:1"></span>
+        ${i>0&&!s.last?'<button class="btn" data-t="prev">←</button>':''}
+        ${s.last?'<button class="btn" data-t="slides">📖 Опис функцій</button><button class="btn primary" data-t="end">Почнімо! ✨</button>':`<button class="btn primary" data-t="next">${i===0?'Почати тур →':'Далі →'}</button>`}</div>`;
+    place();
+  }
+  function end(openSlides){
+    tourActive=false; root.remove(); closeAll();
+    window.removeEventListener('resize',place); window.removeEventListener('keydown',onKey);
+    state.goals=state.goals.filter(g=>g.id!==TOUR_SAMPLE);
+    ui.view=first?'goals':prev.view; ui.status=prev.status; ui.cat=prev.cat;
+    if(!state.settings.tutorialSeen) state.settings.tutorialSeen=true;
+    save(); render(); window.scrollTo(0,0);
+    if(openSlides) setTimeout(()=>openTutorial(false),300);
+    else if(first) toast('Гарного старту! Натисни «+», щоб додати першу задачу');
+  }
+  const onKey=e=>{ if(busy) return; if(e.key==='Escape') end(); if(e.key==='ArrowRight'&&i<TOUR.length-1){ i++; show(1);} if(e.key==='ArrowLeft'&&i>0){ i--; show(-1);} };
+  tip.addEventListener('click',e=>{
+    const b=e.target.closest('[data-t]'); if(!b||busy) return; const a=b.dataset.t;
+    if(a==='next'&&i<TOUR.length-1){ i++; show(1); }
+    if(a==='prev'&&i>0){ i--; show(-1); }
+    if(a==='skip'||a==='end') end(false);
+    if(a==='slides') end(true);
+  });
+  window.addEventListener('resize',place); window.addEventListener('keydown',onKey);
+  render(); show(1);
+}
+
+/* ---- Туторіал ---- */
+function tutorialSlides(){
+  return [
+    {e:'💡', t:'Вітаємо!', l:'Це твій трекер задач, який <b>винагороджує</b> за кожну виконану справу. Тут немає штрафів і докорів, лише прогрес і радість від зробленого.',
+      li:[['🎯','Записуй задачі та розбивай їх на кроки'],['🌱','Помічай кожен свій крок уперед'],['🏆','Збирай нагороди й дивись, як ростеш']]},
+    {e:'➕', t:'Нова задача', l:'Натисни кнопку <b>«+»</b> унизу праворуч на екрані «Мої задачі».',
+      li:[['✏️','Назва — єдине обов’язкове поле'],['📝','«Деталі задачі», категорія, пріоритет'],['📅','Дедлайн обирається в календарі, а час на циферблаті'],['🔔','Нагадування: за годину, день, тиждень…']]},
+    {e:'✅', t:'Кроки й прогрес', l:'Велику задачу легше зробити маленькими кроками.',
+      li:[['👣','Додавай кроки при створенні або в картці задачі'],['📊','Відсоток виконання рахується сам'],['🏁','Коли всі кроки готові, застосунок запропонує завершити задачу']]},
+    {e:'🗂️', t:'Категорії', l:'Розкладай задачі по сферах життя: «Особисте», «Робоче» чи будь-які свої.',
+      li:[['🔎','Фільтруй задачі кнопками-категоріями вгорі списку'],['🎨','Створюй власні категорії з іконкою та кольором у Налаштуваннях'],['↪️','Під час видалення категорії ти сам вирішуєш, куди перенести кожну задачу']]},
+    {e:'✅', t:'Завершення задачі', l:'Натисни «Завершити задачу», коли все готово. Застосунок нагадає тобі, що твої досягнення заслуговують на визнання.',
+      li:[['🖼️','Додай у Налаштуваннях картинки, які тебе радують, і вони з’являтимуться після виконання задач'],['📜','Усі виконані задачі зберігаються з датою у вкладці «Виконані»']]},
+    {e:'💌', t:'Листи від себе', l:'Напиши собі теплі слова в Налаштуваннях: «Пишаюся тобою», «Ти впораєшся».',
+      li:[['🔁','Вони чергуються зі стандартною похвалою'],['💛','Найкраща підтримка — твоя власна']]},
+    {e:'📝', t:'Підсумок дня о 21:00', l:'Щовечора приходить сповіщення <b>«Час прописати задачі, які були сьогодні виконані тобою»</b>.',
+      li:[['☑️','Відмічай виконані задачі та кроки з 10 найближчих'],['＋','Додавай нові кроки прямо там і одразу відмічай їх'],['🆕','Записуй справи, яких не було в списку'],['💛','Застосунок лагідно відзначить усе, що тобі вдалося']]},
+    {e:'🌿', t:'День відпочинку', l:`Не кожен день має бути продуктивним. У підсумку дня натисни «${G3('Сьогодні відпочивав','Сьогодні відпочивала','Сьогодні відпочивав(-ла)')}».`,
+      li:[['🍵','Отримаєш теплу фразу замість відчуття, що день пропав'],['📈','Дні відпочинку рахуються в «Досягненнях», бо це теж турбота про себе']]},
+    {e:'🗓', t:'Перепланувати', l:'Якщо дедлайн минув, це не провал, а лише привід обрати нову дату.',
+      li:[['👆','Натисни «🗓 Перепланувати» на картці задачі'],['📅','Обери «Завтра», «Через тиждень» чи будь-яку дату']]},
+    {e:'🔔', t:'Дзвіночок', l:'Угорі праворуч на головному екрані зберігаються всі сповіщення.',
+      li:[['📝','Щоденний підсумок відкриває екран відмітки зробленого'],['⏰','Нагадування відкриває саму задачу'],['🔢','Цифра показує, скільки непрочитаних']]},
+    {e:'🏆', t:'Досягнення', l:'Вкладка, де видно, скільки всього вже зроблено.',
+      li:[['📊','Графік виконаних задач по днях, тижнях і місяцях'],['🗂️','Прогрес за категоріями'],['🏅','12 нагород, які відкриваються самі'],['🌟','Стрічка всіх виконаних задач']]},
+    {e:'☁️', t:'Синхронізація', l:'Користуйся застосунком на кількох пристроях одночасно.',
+      li:[['🔐','Створи акаунт з поштою й паролем у Налаштуваннях'],['📱','Увійди з тим самим акаунтом на телефоні, планшеті чи в браузері'],['🔄','Зміни з’являються на всіх пристроях за кілька секунд'],['📴','Без інтернету все працює, а зміни надішлються пізніше']]},
+    {e:'⚙️', t:'Налаштування', l:'Зроби застосунок своїм.',
+      li:[['🎨','Тема: світла, темна чи рожева'],['🙂','Звертання: жіночий чи чоловічий рід'],['🔔','Нагадування та щоденний підсумок'],['💾','Резервна копія: експорт у файл та імпорт, щоб перенести дані на інший пристрій']]},
+    {e:'📲', t:'Майже готово!', l:'Кілька порад, щоб усе працювало найкраще:', last:true,
+      li:[...(NATIVE?[]:[['🏠','Встанови застосунок на головний екран: у Chrome меню ⋮ → «Установити додаток»']]),['🔔','Увімкни сповіщення, щоб не пропускати підсумок дня'],['💾','Раз на тиждень роби резервну копію'],['📖','Опис функцій і тур завжди є в Налаштуваннях → «Ознайомитись із функціями»']]},
+  ];
+}
+function openTutorial(first){
+  const S=tutorialSlides(); let i=0;
+  const finish=()=>{ if(!state.settings.tutorialSeen){ state.settings.tutorialSeen=true; save(); } };
+  const m=openModal(()=>{
+    const s=S[i], last=i===S.length-1;
+    return `<div class="tut-top"><span class="small">${i+1} / ${S.length}</span>${last?'':'<button class="btn ghost" style="min-height:36px;padding:6px 10px" data-a="skip">Пропустити</button>'}</div>
+      <div class="tut-body" key="${i}"><div class="tut-hero">${s.e}</div><h2>${s.t}</h2><p class="lead">${s.l}</p>
+        <ul class="tut-list">${s.li.map(([e,t])=>`<li><span>${e}</span><span>${t}</span></li>`).join('')}</ul>
+        ${last&&notifState()==='default'?'<button class="btn ghost" data-a="notif" style="margin-top:8px">🔔 Увімкнути сповіщення</button>':''}</div>
+      <div class="tut-dots">${S.map((_,k)=>`<i class="${k===i?'on':''}"></i>`).join('')}</div>
+      <div class="tut-nav">${i>0?'<button class="btn" data-a="prev">← Назад</button>':''}<button class="btn primary" data-a="${last?'done':'next'}">${last?'Почнімо! ✨':(i===0?'Показати, як це працює →':'Далі →')}</button></div>`;
+  }, {cls:'tutorial', onClose:finish});
+  const go=d=>{ const n=i+d; if(n<0||n>=S.length) return; i=n; m.render(); m.sheet.scrollTop=0; };
+  m.sheet.addEventListener('click',e=>{
+    const b=e.target.closest('[data-a]'); if(!b) return; const a=b.dataset.a;
+    if(a==='next') go(1); if(a==='prev') go(-1);
+    if(a==='skip'||a==='done'){ m.close(); if(a==='done'&&first) toast('Гарного старту! Натисни «+», щоб додати першу задачу'); }
+    if(a==='notif'){ enableNotifications().then(()=>m.render()); }
+  });
+  // свайпи
+  let x0=null, y0=null;
+  m.sheet.addEventListener('touchstart',e=>{ x0=e.touches[0].clientX; y0=e.touches[0].clientY; },{passive:true});
+  m.sheet.addEventListener('touchend',e=>{ if(x0===null) return; const dx=e.changedTouches[0].clientX-x0, dy=e.changedTouches[0].clientY-y0; if(Math.abs(dx)>50&&Math.abs(dx)>Math.abs(dy)*1.5) go(dx<0?1:-1); x0=null; });
+}
+
+function showRest(n){
+  const today=ymd(new Date());
+  if(!state.restDays.includes(today)){ state.restDays.push(today); save(); }
+  const phrases=[
+    G3('Ти заслужив на цей відпочинок 🌿','Ти заслужила на цей відпочинок 🌿','Ти заслуговуєш на цей відпочинок 🌿'),
+    'Відпочинок — теж частина шляху. Завтра буде новий день ☀️',
+    'Сили відновлюються саме так. Добре, що ти дбаєш про себе 💛',
+    'Навіть дерева відпочивають взимку, щоб навесні розквітнути 🌸',
+    G3('Молодець, що дозволив собі паузу 🍵','Молодчинка, що дозволила собі паузу 🍵','Добре, що ти дозволяєш собі паузу 🍵'),
+  ];
+  const phrase=phrases[Math.floor(Math.random()*phrases.length)];
+  const total=state.restDays.length;
+  const m=openModal(()=>`<div class="hero">🌿</div>
+    <h2>${G3('Гарного відпочинку!','Гарного відпочинку!','Гарного відпочинку!')}</h2>
+    <div class="gname" style="font-weight:600">${phrase}</div>
+    ${n?`<div class="small" style="margin-top:8px">А ще сьогодні ${G3('ти встиг','ти встигла','вдалося')} зробити ${n} ${plural(n,['справу','справи','справ'])} — чудово ✨</div>`:''}
+    <div class="small" style="margin:10px 0 20px">Днів відпочинку: ${total} 🌿</div>
+    <button class="btn primary block" data-a="close">Дякую 💛</button>`, {cls:'celebrate', onClose:()=>{ render(); checkBadges(); }});
+  m.sheet.addEventListener('click',e=>{ if(e.target.closest('[data-a=close]')) m.close(); });
+}
+function emojiBurst(){
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const EM=['🎉','🥳','🌟','✨','💛','💜','💖','🌈','🏆','👏','🌸','🌻','😍','🙌','⭐','🎊'];
+  const box=document.createElement('div'); box.className='burst'; document.body.appendChild(box);
+  for(let i=0;i<40;i++){
+    const s=document.createElement('span'); s.textContent=EM[i%EM.length]; box.appendChild(s);
+    const ang=Math.random()*Math.PI*2, dist=140+Math.random()*Math.max(innerWidth,innerHeight)*0.55;
+    const x=Math.cos(ang)*dist, y=Math.sin(ang)*dist, rot=(Math.random()-.5)*720, sc=.7+Math.random()*1.1;
+    s.animate([{transform:'translate(-50%,-50%) scale(.2)',opacity:1},{transform:`translate(calc(-50% + ${x}px),calc(-50% + ${y}px)) rotate(${rot}deg) scale(${sc})`,opacity:1,offset:.75},{transform:`translate(calc(-50% + ${x*1.1}px),calc(-50% + ${y*1.1+60}px)) rotate(${rot}deg) scale(${sc})`,opacity:0}],{duration:1400+Math.random()*700,easing:'cubic-bezier(.15,.8,.3,1)',fill:'forwards'});
+  }
+  setTimeout(()=>box.remove(),2400);
+}
+
+/* ---- Святкові картинки (зберігаються в IndexedDB) ---- */
+let images=[];
+function mediaDb(){ return new Promise((res,rej)=>{ if(!('indexedDB' in window)) return rej('no idb'); const r=indexedDB.open('tracker-media',1); r.onupgradeneeded=()=>r.result.createObjectStore('images',{keyPath:'id'}); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
+async function mediaTx(mode, fn){ const db=await mediaDb(); return new Promise((res,rej)=>{ const t=db.transaction('images',mode); const out=fn(t.objectStore('images')); t.oncomplete=()=>res(out&&out.result); t.onerror=()=>rej(t.error); }); }
+async function loadImages(){ try{ images=(await mediaTx('readonly',s=>s.getAll()))||[]; images.sort((a,b)=>(a.addedAt||'').localeCompare(b.addedAt||'')); }catch(e){ images=[]; } }
+function resizeImage(file, max=1280){
+  return new Promise((res,rej)=>{
+    const url=URL.createObjectURL(file), img=new Image();
+    img.onload=()=>{ const k=Math.min(1,max/Math.max(img.width,img.height)); const c=document.createElement('canvas'); c.width=Math.round(img.width*k); c.height=Math.round(img.height*k); c.getContext('2d').drawImage(img,0,0,c.width,c.height); URL.revokeObjectURL(url); res(c.toDataURL('image/jpeg',0.85)); };
+    img.onerror=()=>{ URL.revokeObjectURL(url); rej('bad image'); };
+    img.src=url;
+  });
+}
+async function addImageFiles(files){
+  let n=0;
+  for(const f of files){ if(!f.type.startsWith('image/')) continue;
+    try{ const rec={id:uid(), data:await resizeImage(f), addedAt:nowIso()}; await mediaTx('readwrite',s=>s.put(rec)); images.push(rec); n++; }catch(e){} }
+  toast(n?`Додано ${n} ${plural(n,['картинку','картинки','картинок'])}`:'Не вдалося додати картинку'); render(); schedulePush();
+}
+async function deleteImage(id){
+  if(!await confirmDel('Видалити картинку?','Вона більше не з’являтиметься після виконання задач.')) return;
+  try{ await mediaTx('readwrite',s=>s.delete(id)); }catch(e){}
+  images=images.filter(i=>i.id!==id); render(); schedulePush(); toast('Картинку видалено');
+}
+async function importImages(list, replace){
+  try{ await mediaTx('readwrite',s=>{ if(replace) s.clear(); for(const i of list) s.put(i); }); }catch(e){}
+  await loadImages();
+}
+function showCelebration(g){
+  const pic = images.length ? images[Math.floor(Math.random()*images.length)].data : null;
+  const phrases=['Вітаємо!','Чудова робота!','Так тримати!',G3('Ти молодець!','Ти молодчинка!','Ти молодець!'),'Ще одна вершина!'];
+  const phrase=phrases[Math.floor(Math.random()*phrases.length)], letter=nextLetter();
+  const m=openModal(()=>`
+    ${pic?`<img class="pic" src="${pic}" alt="">`:'<div class="hero">🎉</div>'}
+    ${letter?letterCard(letter):`<h2>${phrase}</h2>`}
+    <div class="small">Задачу виконано</div>
+    <div class="gname">${esc(g.title)}</div>
+    <div class="small" style="margin-bottom:20px">${fmtDate(ymd(new Date()),true)}</div>
+    <button class="btn primary block" data-a="close">Дякую! 💛</button>`, {cls:'celebrate', onClose:()=>{ render(); checkBadges(); }});
+  m.sheet.addEventListener('click',e=>{ if(e.target.closest('[data-a=close]')) m.close(); });
+  celebrate();
+}
+
+/* ---- Редактор категорії ---- */
+function openCategoryEditor(id, onSaved){
+  const c=id?state.categories.find(x=>x.id===id):null;
+  let emoji=c?c.emoji:EMOJIS[3], color=c?c.color:COLORS[(state.categories.length)%COLORS.length];
+  const m=openModal(()=>`<div class="sheet-head"><h2>${c?'Редагувати категорію':'Нова категорія'}</h2><button class="icon-btn" data-a="close" aria-label="Закрити">${ICONS.close}</button></div>
+    <form data-f="cat" novalidate>
+      <label class="field"><span>Назва *</span><input class="input" name="name" maxlength="40" value="${esc(c?c.name:'')}" placeholder="Напр.: Здоров’я" autocomplete="off"></label>
+      <div class="err" data-err hidden>Введіть назву</div>
+      <div class="field"><span>Іконка</span><div class="emoji-grid">${EMOJIS.map(e=>`<button type="button" data-emoji="${e}" class="${e===emoji?'on':''}">${e}</button>`).join('')}</div></div>
+      <div class="field"><span>Колір</span><div class="colors">${COLORS.map(x=>`<button type="button" data-color="${x}" style="--c:${x}" class="${x===color?'on':''}" aria-label="Колір"></button>`).join('')}</div></div>
+      <div class="field"><span>Попередній вигляд</span><div><span class="cat-pill" data-preview style="--c:${color}">${emoji} ${esc(c?c.name:'Категорія')}</span></div></div>
+      <button class="btn primary block" type="submit">${c?'Зберегти':'Створити'}</button>
+    </form>`, {dialog:false});
+  const form=$('form',m.sheet), pv=$('[data-preview]',m.sheet);
+  const upd=()=>{ pv.style.setProperty('--c',color); pv.textContent=emoji+' '+(form.elements.name.value.trim()||'Категорія'); };
+  form.elements.name.addEventListener('input',upd);
+  m.sheet.addEventListener('click',e=>{
+    const t=e.target.closest('button'); if(!t) return;
+    if(t.dataset.a==='close') return m.close();
+    if(t.dataset.emoji){ emoji=t.dataset.emoji; $$('[data-emoji]',m.sheet).forEach(x=>x.classList.toggle('on',x===t)); upd(); }
+    if(t.dataset.color){ color=t.dataset.color; $$('[data-color]',m.sheet).forEach(x=>x.classList.toggle('on',x===t)); upd(); }
+  });
+  form.addEventListener('submit',e=>{
+    e.preventDefault(); const name=form.elements.name.value.trim();
+    if(!name){ $('[data-err]',m.sheet).hidden=false; return; }
+    let res;
+    if(c){ Object.assign(c,{name,emoji,color}); res=c; }
+    else { res={id:uid(),name,emoji,color,custom:true}; state.categories.push(res); }
+    save(); m.close(); toast(c?'Категорію оновлено':'Категорію створено'); checkBadges(); onSaved&&onSaved(res); render();
+  });
+  setTimeout(()=>{ if(!c) form.elements.name.focus(); },250);
+}
+async function deleteCategory(id){
+  const c=state.categories.find(x=>x.id===id); if(!c) return;
+  const goals=state.goals.filter(g=>g.categoryId===id); const n=goals.length;
+  const finish=()=>{ state.categories=state.categories.filter(x=>x.id!==id); if(ui.cat===id) ui.cat='all'; save(); render(); toast('Категорію видалено'); };
+  if(!n){ if(await confirmDel('Видалити категорію «'+c.name+'»?','Категорія порожня.')) finish(); return; }
+  const others=state.categories.filter(x=>x.id!==id);
+  const opts=(sel)=>others.map(o=>`<option value="${esc(o.id)}" ${o.id===sel?'selected':''}>${esc(o.emoji)} ${esc(o.name)}</option>`).join('')+`<option value="" ${sel===''?'selected':''}>📌 Без категорії</option>`;
+  const def=others.length?others[0].id:'';
+  const statusTxt={active:'',done:' · виконана',archived:' · в архіві'};
+  const m=openModal(()=>`<div class="sheet-head"><h2>Видалити «${esc(c.emoji)} ${esc(c.name)}»?</h2><button class="icon-btn" data-a="close" aria-label="Закрити">${ICONS.close}</button></div>
+    <p class="small" style="margin:0 0 14px">У цій категорії ${n} ${plural(n,['задача','задачі','задач'])}. Оберіть, куди перенести кожну. Самі задачі не видаляться.</p>
+    ${n>1?`<label class="field"><span>Перенести всі одразу в…</span><select class="input" data-all><option value="__none" selected>— обрати для всіх —</option>${opts(null)}</select></label>`:''}
+    <div class="list" style="margin-bottom:16px">${goals.map(g=>`<div class="list-item" style="flex-wrap:wrap"><div class="grow" style="min-width:140px"><div style="font-weight:600;word-break:break-word">${esc(g.title)}</div><div class="small">${g.deadline?'📅 '+fmtShort(parseYmd(g.deadline)):'Без дедлайну'}${statusTxt[g.status]}</div></div><select class="input" style="width:auto;min-width:150px;min-height:40px" data-gid="${esc(g.id)}">${opts(def)}</select></div>`).join('')}</div>
+    <div class="btn-row"><button class="btn danger" data-a="ok">Перенести й видалити</button><button class="btn" data-a="close">Скасувати</button></div>`);
+  m.sheet.addEventListener('change',e=>{ if(e.target.matches('[data-all]') && e.target.value!=='__none'){ $$('[data-gid]',m.sheet).forEach(s=>s.value=e.target.value); } else if(e.target.matches('[data-gid]')){ const a=$('[data-all]',m.sheet); if(a) a.value='__none'; } });
+  m.sheet.addEventListener('click',e=>{
+    const b=e.target.closest('[data-a]'); if(!b) return;
+    if(b.dataset.a==='close') return m.close();
+    if(b.dataset.a==='ok'){ $$('[data-gid]',m.sheet).forEach(s=>{ const g=goalById(s.dataset.gid); if(g){ g.categoryId=s.value||null; touch(g); } }); m.close(); finish(); }
+  });
+}
+
+/* ========== Експорт / імпорт ========== */
+async function exportData(){
+  state.settings.lastBackup=nowIso(); state.stats.backups=(state.stats.backups||0)+1;
+  const payload={app:'achievement-tracker', format:1, exportedAt:nowIso(), data:state, images};
+  const name='trekker-dosyagnen-'+ymd(new Date())+'.json';
+  if(NATIVE){   // в APK: зберігаємо файл і відкриваємо меню «Поділитися» (Google Диск, Файли, Telegram…)
+    try{
+      const r=await CP.Filesystem.writeFile({path:name, data:JSON.stringify(payload), directory:'CACHE', encoding:'utf8'});
+      save(); render(); checkBadges();
+      await CP.Share.share({title:'Резервна копія «Трекер досягнень»', files:[r.uri], dialogTitle:'Куди зберегти копію?'});
+    }catch(e){ if(!/cancel/i.test(String(e&&e.message||e))) toast('Не вдалося зберегти копію'); }
+    return;
+  }
+  const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},2000);
+  save(); render(); toast('Файл збережено в «Завантаження»'); checkBadges();
+}
+async function importFile(file){
+  let obj;
+  try{ obj=JSON.parse(await file.text()); }catch(e){ toast('Це не схоже на файл резервної копії'); return; }
+  const data = obj && obj.app==='achievement-tracker' ? obj.data : (obj && Array.isArray(obj.goals) ? obj : null);
+  if(!data || !Array.isArray(data.goals)){ toast('Файл не містить даних трекера'); return; }
+  const inc=normalize(data);
+  const incImgs=(Array.isArray(obj.images)?obj.images:[]).filter(i=>i&&i.id&&typeof i.data==='string'&&i.data.startsWith('data:image/')).map(i=>({id:String(i.id),data:i.data,addedAt:i.addedAt||nowIso()}));
+  const when=obj.exportedAt?new Date(obj.exportedAt).toLocaleString('uk-UA',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'}):'невідомо';
+  const mode=await dialog({title:'Імпорт резервної копії',
+    text:`Копія від ${esc(when)}: ${inc.goals.length} ${plural(inc.goals.length,['задача','задачі','задач'])}, ${inc.categories.length} ${plural(inc.categories.length,['категорія','категорії','категорій'])}${incImgs.length?`, ${incImgs.length} ${plural(incImgs.length,['картинка','картинки','картинок'])}`:''}.<br><br><b>Об’єднати</b>: додати нове й оновити змінене, нічого не видаляючи.<br><b>Замінити</b>: поточні дані буде повністю замінено копією.`,
+    buttons:[{label:'Об’єднати',value:'merge',kind:'primary'},{label:'Замінити все',value:'replace',kind:'danger'},{label:'Скасувати',value:null}]});
+  if(!mode) return;
+  if(incImgs.length || mode==='replace') await importImages(mode==='replace'?incImgs:incImgs.filter(i=>!images.some(x=>x.id===i.id)), mode==='replace');
+  if(mode==='replace'){
+    const keep={theme:state.settings.theme};
+    state=inc; state.settings.theme=keep.theme;
+  } else {
+    for(const c of inc.categories) if(!state.categories.some(x=>x.id===c.id)) state.categories.push(c);
+    let added=0, updated=0;
+    for(const g of inc.goals){
+      const ex=goalById(g.id);
+      if(!ex){ state.goals.push(g); added++; }
+      else if((g.updatedAt||'')>(ex.updatedAt||'')){ Object.assign(ex,g); updated++; }
+    }
+    for(const k in inc.badges) if(!state.badges[k]) state.badges[k]=inc.badges[k];
+    toast(`Додано: ${added}, оновлено: ${updated}`);
+  }
+  save(); render(); checkBadges();
+  if(mode==='replace') toast('Дані відновлено з копії');
+}
+
+/* ========== Дрібниці ========== */
+let toastT;
+function toast(msg, action){
+  const t=$('#toast'); t.innerHTML=esc(msg)+(action?` <button>${esc(action.label)}</button>`:'');
+  if(action) t.querySelector('button').onclick=()=>{action.fn(); t.classList.remove('show');};
+  t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'), action?5000:2600);
+}
+function celebrate(){
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const box=document.createElement('div'); box.className='confetti';
+  const cols=['#4f46e5','#d9488a','#22915f','#f0b057','#0e8fd1','#ff6b70'];
+  for(let i=0;i<70;i++){ const s=document.createElement('i'); s.style.left=Math.random()*100+'%'; s.style.background=cols[i%cols.length]; s.style.animationDelay=Math.random()*.5+'s'; s.style.animationDuration=(1.2+Math.random()*1)+'s'; box.appendChild(s); }
+  document.body.appendChild(box); setTimeout(()=>box.remove(),2800);
+  try{ navigator.vibrate&&navigator.vibrate([30,40,30]); }catch(e){}
+}
+
+/* ========== Події ========== */
+$('.tabbar').addEventListener('click',e=>{ const b=e.target.closest('.tab'); if(!b) return; ui.view=b.dataset.view; render(); window.scrollTo(0,0); });
+$('#fab').addEventListener('click',()=>openGoalForm(null));
+$('#view').addEventListener('click',async e=>{
+  const b=e.target.closest('[data-action]'); if(!b) return; const a=b.dataset.action, v=b.dataset.v;
+  if(a==='status'){ ui.status=v; render(); }
+  else if(a==='chart'){ ui.chart=v; render(); }
+  else if(a==='resched') reschedule(b.dataset.id);
+  else if(a==='gender'){ state.settings.gender=v; save(); render(); toast('Збережено'); }
+  else if(a==='slides') openTutorial(false);
+  else if(a==='auth') openAuth(v);
+  else if(a==='logout') logoutFlow();
+  else if(a==='tour') startTour(false);
+  else if(a==='add-letter') addLetter();
+  else if(a==='del-letter'){ state.letters=state.letters.filter(l=>l.id!==b.dataset.id); save(); render(); toast('Лист видалено'); }
+  else if(a==='toggle-daily'){ state.settings.dailyReview = state.settings.dailyReview===false; save(); render(); toast(state.settings.dailyReview?`Щоденний підсумок о ${DAILY_HOUR}:00 увімкнено`:'Щоденний підсумок вимкнено'); }
+  else if(a==='cat'){ ui.cat=v; render(); }
+  else if(a==='open') openGoal(b.dataset.id);
+  else if(a==='theme'){ state.settings.theme=v; save(); render(); }
+  else if(a==='enable-notif') enableNotifications();
+  else if(a==='test-notif'){ await showNotification({key:'test-'+Date.now(),title:'🔔 Тестове нагадування',body:'Сповіщення працюють!'}); toast('Тестове сповіщення надіслано'); }
+  else if(a==='new-cat') openCategoryEditor(null);
+  else if(a==='edit-cat') openCategoryEditor(b.dataset.id);
+  else if(a==='del-cat') deleteCategory(b.dataset.id);
+  else if(a==='add-pic'){ $('#picFile').value=''; $('#picFile').click(); }
+  else if(a==='del-pic') deleteImage(b.dataset.id);
+  else if(a==='export') exportData();
+  else if(a==='import'){ $('#importFile').value=''; $('#importFile').click(); }
+  else if(a==='install'){ if(deferredInstall){ deferredInstall.prompt(); const r=await deferredInstall.userChoice; deferredInstall=null; if(r.outcome==='accepted') toast('Застосунок встановлюється 📲'); render(); } }
+  else if(a==='dismiss-install'){ state.settings.installHintDismissed=true; save(); render(); }
+});
+$('#view').addEventListener('keydown',e=>{ if(e.key==='Enter' && e.target.id==='letterInput'){ e.preventDefault(); addLetter(); } });
+function addLetter(){
+  const i=$('#letterInput'); const t=i&&i.value.trim(); if(!t){ i&&i.focus(); return; }
+  state.letters.push({id:uid(), text:t}); save(); render(); toast('Лист збережено 💌');
+  const ni=$('#letterInput'); ni&&ni.focus();
+}
+/* Чергування: стандартна похвала ↔ лист від себе */
+let letterTurn=false;
+function nextLetter(){ if(!state.letters.length) return null; letterTurn=!letterTurn; return letterTurn ? state.letters[Math.floor(Math.random()*state.letters.length)].text : null; }
+const letterCard=t=>`<div class="letter"><div class="lh">💌 Лист від себе</div><p>«${esc(t)}»</p></div>`;
+$('#view').addEventListener('change',e=>{ if(e.target.dataset.action==='default-reminder'){ state.settings.defaultReminder=e.target.value; save(); toast('Збережено'); } });
+$('#importFile').addEventListener('change',e=>{ const f=e.target.files[0]; if(f) importFile(f); });
+$('#picFile').addEventListener('change',e=>{ const fs=[...e.target.files]; if(fs.length) addImageFiles(fs); });
+window.addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); deferredInstall=e; render(); });
+window.addEventListener('appinstalled',()=>{ deferredInstall=null; render(); });
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden){ loadFeed().then(checkReminders); if(!modalStack.length) render(); } });
+window.addEventListener('storage',e=>{ if(e.key===STORE_KEY){ state=load(); render(); } });
+
+/* ========== ☁️ Синхронізація між пристроями (Firebase) ========== */
+const FB_CONFIG={apiKey:"AIzaSyBpblTwwNvufsAC7AYzn9ePZoSwAvpnKps",authDomain:"you-re-molodchinka.firebaseapp.com",projectId:"you-re-molodchinka",storageBucket:"you-re-molodchinka.firebasestorage.app",messagingSenderId:"697867411466",appId:"1:697867411466:web:ceaaafab7565517963bff3"};
+const SYNC_OK = !!window.FB && typeof DEMO_SEED!=='function';
+const SYNC_UID_KEY='molodchinka-sync-uid';
+const sync={user:null, auth:null, db:null, unsubs:[], ready:false, readyParts:new Set(), status:'off', err:'', pushTimer:null,
+  remote:{goals:new Map(), categories:new Map(), images:new Set(), profile:null, feed:new Map()}, mergeProfile:false};
+const clean=o=>JSON.parse(JSON.stringify(o));
+const feedItem=f=>({key:String(f.key), type:f.type||'reminder', title:String(f.title||''), body:String(f.body||''), goalId:f.goalId||null, at:Number(f.at)||Date.now(), read:!!f.read});
+const feedDocId=k=>String(k).replace(/[\/]/g,'_').replace(/^\.+$/,'_').slice(0,700);
+function canon(o){ if(Array.isArray(o)) return '['+o.map(canon).join(',')+']'; if(o&&typeof o==='object') return '{'+Object.keys(o).sort().filter(k=>o[k]!==undefined).map(k=>JSON.stringify(k)+':'+canon(o[k])).join(',')+'}'; return JSON.stringify(o); }
+function profileData(){ return clean({gender:state.settings.gender||'', dailyReview:state.settings.dailyReview!==false, defaultReminder:state.settings.defaultReminder||'1d',
+  letters:state.letters, restDays:state.restDays, badges:state.badges, stats:state.stats, lastBackup:state.settings.lastBackup||null}); }
+function applyProfile(p, merge){
+  if(!p) return;
+  if(p.gender==='m'||p.gender==='f'){ if(!merge || !hasGender()) state.settings.gender=p.gender; }
+  if(typeof p.dailyReview==='boolean') state.settings.dailyReview=p.dailyReview;
+  if(p.defaultReminder) state.settings.defaultReminder=p.defaultReminder;
+  if(p.lastBackup && (!state.settings.lastBackup || p.lastBackup>state.settings.lastBackup)) state.settings.lastBackup=p.lastBackup;
+  const L=Array.isArray(p.letters)?p.letters.filter(l=>l&&l.text):[], R=Array.isArray(p.restDays)?p.restDays:[];
+  if(merge){
+    for(const l of L) if(!state.letters.some(x=>x.text===l.text)) state.letters.push(l);
+    for(const d of R) if(!state.restDays.includes(d)) state.restDays.push(d);
+    for(const k in (p.badges||{})) if(!state.badges[k]) state.badges[k]=p.badges[k];
+    state.stats.backups=Math.max(state.stats.backups||0, (p.stats&&p.stats.backups)||0);
+  } else { state.letters=L; state.restDays=R; state.badges=p.badges||{}; state.stats={...state.stats, ...(p.stats||{})}; }
+}
+function setSyncStatus(s, err){ sync.status=s; sync.err=err||''; const el=$('#syncStatus'); if(el) el.innerHTML=syncStatusText(); }
+function syncStatusText(){
+  if(!navigator.onLine && sync.user) return '📴 Немає інтернету — зміни збережено й надішлються пізніше';
+  return {ok:'✓ Синхронізовано', syncing:'🔄 Синхронізація…', error:'⚠️ '+esc(sync.err||'Помилка синхронізації'), off:''}[sync.status]||'';
+}
+function fbErr(e){
+  const c=(e&&e.code)||'';
+  return ({'auth/invalid-email':'Неправильна адреса пошти','auth/invalid-credential':'Неправильна пошта або пароль','auth/wrong-password':'Неправильна пошта або пароль',
+    'auth/user-not-found':'Акаунта з такою поштою немає','auth/email-already-in-use':'Акаунт з цією поштою вже існує — просто увійди',
+    'auth/weak-password':'Пароль має містити щонайменше 6 символів','auth/network-request-failed':'Немає інтернету. Перевір з’єднання',
+    'auth/too-many-requests':'Забагато спроб. Спробуй трохи згодом','auth/missing-password':'Введи пароль',
+    'permission-denied':'Немає доступу до бази. Перевір правила Firestore'})[c] || ('Щось пішло не так'+(c?' ('+c+')':''));
+}
+function syncInit(){
+  if(!SYNC_OK) return;
+  try{
+    const F=FB; const app=F.initializeApp(FB_CONFIG);
+    sync.auth=F.initializeAuth(app,{persistence:[F.indexedDBLocalPersistence, F.browserLocalPersistence]});
+    try{ sync.auth.languageCode='uk'; }catch(e){}   // листи Firebase (скидання пароля) — українською
+    try{ sync.db=F.initializeFirestore(app,{localCache:F.persistentLocalCache({tabManager:F.persistentMultipleTabManager()})}); }
+    catch(e){ sync.db=F.initializeFirestore(app,{localCache:F.memoryLocalCache()}); }
+    F.onAuthStateChanged(sync.auth, u=>{ if(u && (!sync.user || sync.user.uid!==u.uid)) startSync(u); else if(!u && sync.user) stopSync(); else if(!u) render(); });
+    window.addEventListener('online',()=>setSyncStatus(sync.status)); window.addEventListener('offline',()=>setSyncStatus(sync.status));
+  }catch(e){ console.log('sync init error', e); }
+}
+let syncReadyWaiters=[];
+function waitSyncReady(ms=5000){ return sync.ready?Promise.resolve():new Promise(r=>{ syncReadyWaiters.push(r); setTimeout(r,ms); }); }
+function partReady(p){ sync.readyParts.add(p); if(sync.readyParts.size>=5 && !sync.ready){ sync.ready=true; sync.mergeProfile=false; syncReadyWaiters.splice(0).forEach(f=>f()); afterRemote(); schedulePush(); setSyncStatus('ok'); } }
+async function startSync(user){
+  const F=FB, db=sync.db, uid=user.uid;
+  sync.user=user; sync.ready=false; sync.readyParts=new Set(); sync.remote={goals:new Map(), categories:new Map(), images:new Set(), profile:null, feed:new Map()};
+  setSyncStatus('syncing'); render();
+  let known=null; try{ known=localStorage.getItem(SYNC_UID_KEY); }catch(e){}
+  if(known!==uid){
+    // перший вхід на цьому пристрої під цим акаунтом
+    let remoteHas=false;
+    try{ const s=await F.getDocs(F.collection(db,'users',uid,'goals')); remoteHas=!s.empty; }catch(e){ remoteHas=false; }
+    const localHas=state.goals.some(g=>g.id!==TOUR_SAMPLE) || state.letters.length>0;
+    let mode='merge';
+    if(remoteHas && localHas){
+      mode=await dialog({title:'У твоєму акаунті вже є задачі', text:'На цьому пристрої теж є задачі. Що з ними зробити?',
+        buttons:[{label:'Об’єднати все разом',value:'merge',kind:'primary'},{label:'Залишити лише дані з акаунта',value:'remote'}]}) || 'merge';
+    } else if(remoteHas) mode='remote';
+    if(mode==='remote'){ state.goals=[]; state.categories=DEFAULT_CATS.map(c=>({...c})); state.letters=[]; state.restDays=[]; images=[]; try{ await mediaTx('readwrite',s=>s.clear()); }catch(e){} }
+    sync.mergeProfile = mode==='merge';
+    try{ localStorage.setItem(SYNC_UID_KEY, uid); }catch(e){}
+  }
+  const base=['users',uid];
+  sync.unsubs.push(F.onSnapshot(F.collection(db,...base,'goals'), snap=>{
+    let ch=false;
+    snap.docChanges().forEach(c=>{
+      const id=c.doc.id;
+      if(c.type==='removed'){ sync.remote.goals.delete(id); const i=state.goals.findIndex(g=>g.id===id); if(i>=0){ state.goals.splice(i,1); ch=true; } return; }
+      const g=normalize({goals:[{...c.doc.data(), id}]}).goals[0]; if(!g) return;
+      const cs=canon(g); sync.remote.goals.set(id,cs);
+      const ex=goalById(id);
+      if(!ex){ state.goals.push(g); ch=true; }
+      else if(canon(ex)!==cs && (ex.updatedAt||'')<=(g.updatedAt||'')){ Object.assign(ex,g); ch=true; }
+    });
+    if(ch && sync.ready) afterRemote(); partReady('goals');
+  }, e=>setSyncStatus('error', fbErr(e))));
+  sync.unsubs.push(F.onSnapshot(F.collection(db,...base,'categories'), snap=>{
+    let ch=false;
+    snap.docChanges().forEach(c=>{
+      const id=c.doc.id;
+      if(c.type==='removed'){ sync.remote.categories.delete(id); const i=state.categories.findIndex(x=>x.id===id); if(i>=0){ state.categories.splice(i,1); ch=true; } return; }
+      const cat0=normalize({categories:[{...c.doc.data(), id}]}).categories[0]; if(!cat0) return;
+      const cs=canon(cat0); sync.remote.categories.set(id,cs);
+      const ex=state.categories.find(x=>x.id===id);
+      if(!ex){ state.categories.push(cat0); ch=true; } else if(canon(ex)!==cs){ Object.assign(ex,cat0); ch=true; }
+    });
+    if(ch && sync.ready) afterRemote(); partReady('categories');
+  }, e=>setSyncStatus('error', fbErr(e))));
+  sync.unsubs.push(F.onSnapshot(F.doc(db,...base,'meta','profile'), d=>{
+    if(d.exists()){ applyProfile(d.data(), sync.mergeProfile && !sync.ready); sync.remote.profile=sync.mergeProfile&&!sync.ready?null:canon(profileData()); if(sync.ready) afterRemote(); }
+    partReady('profile');
+  }, e=>setSyncStatus('error', fbErr(e))));
+  // спільний дзвіночок: однакові сповіщення мають однаковий ключ на всіх пристроях
+  sync.unsubs.push(F.onSnapshot(F.collection(db,...base,'feed'), async snap=>{
+    feed=(await idbGet('feed'))||feed; let ch=false;
+    for(const c of snap.docChanges()){
+      const d=c.doc.data()||{}, key=d.key||c.doc.id;
+      if(c.type==='removed'){ sync.remote.feed.delete(key); const n=feed.length; feed=feed.filter(f=>f.key!==key); if(feed.length!==n) ch=true; continue; }
+      const it=feedItem(d); let ex=feed.find(f=>f.key===key);
+      if(!ex){ feed.push(it); ex=it; ch=true; }
+      else { const r=ex.read||it.read; if(canon(feedItem(ex))!==canon({...it,read:r})){ Object.assign(ex, it, {read:r}); ch=true; } }
+      sync.remote.feed.set(key, it.read===ex.read ? canon(feedItem(ex)) : '');
+    }
+    if(ch){ feed.sort((a,b)=>b.at-a.at); await idbSet('feed',feed); updateBell(); if(sync.ready) schedulePush(); }
+    partReady('feed');
+  }, e=>setSyncStatus('error', fbErr(e))));
+  sync.unsubs.push(F.onSnapshot(F.collection(db,...base,'images'), async snap=>{
+    let ch=false;
+    for(const c of snap.docChanges()){
+      const id=c.doc.id;
+      if(c.type==='removed'){ sync.remote.images.delete(id); if(images.some(i=>i.id===id)){ images=images.filter(i=>i.id!==id); try{ await mediaTx('readwrite',s=>s.delete(id)); }catch(e){} ch=true; } continue; }
+      sync.remote.images.add(id);
+      if(!images.some(i=>i.id===id)){ const d=c.doc.data(); if(typeof d.data==='string'){ const rec={id, data:d.data, addedAt:d.addedAt||nowIso()}; images.push(rec); try{ await mediaTx('readwrite',s=>s.put(rec)); }catch(e){} ch=true; } }
+    }
+    if(ch) render(); partReady('images');
+  }, e=>setSyncStatus('error', fbErr(e))));
+}
+function afterRemote(){ try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }catch(e){} syncSchedule(); render(); }
+function stopSync(){ sync.unsubs.splice(0).forEach(u=>{ try{u();}catch(e){} }); sync.user=null; sync.ready=false; setSyncStatus('off'); render(); }
+function schedulePush(){ if(!sync.user) return; clearTimeout(sync.pushTimer); sync.pushTimer=setTimeout(pushNow, 500); }
+async function pushNow(){
+  if(!sync.user) return; if(!sync.ready){ schedulePush(); return; }
+  const F=FB, db=sync.db, uid=sync.user.uid; const ops=[];
+  const cur=new Map(state.goals.filter(g=>g.id!==TOUR_SAMPLE).map(g=>[g.id,g]));
+  for(const [id,g] of cur){ const c=canon(g); if(sync.remote.goals.get(id)!==c){ ops.push(['set',F.doc(db,'users',uid,'goals',id),clean(g)]); sync.remote.goals.set(id,c); } }
+  for(const id of [...sync.remote.goals.keys()]) if(!cur.has(id)){ ops.push(['del',F.doc(db,'users',uid,'goals',id)]); sync.remote.goals.delete(id); }
+  const cc=new Map(state.categories.map(c=>[c.id,c]));
+  for(const [id,c0] of cc){ const c=canon(c0); if(sync.remote.categories.get(id)!==c){ ops.push(['set',F.doc(db,'users',uid,'categories',id),clean(c0)]); sync.remote.categories.set(id,c); } }
+  for(const id of [...sync.remote.categories.keys()]) if(!cc.has(id)){ ops.push(['del',F.doc(db,'users',uid,'categories',id)]); sync.remote.categories.delete(id); }
+  const pc=canon(profileData()); if(pc!==sync.remote.profile){ ops.push(['set',F.doc(db,'users',uid,'meta','profile'),profileData()]); sync.remote.profile=pc; }
+  for(const im of images) if(!sync.remote.images.has(im.id)){ ops.push(['set',F.doc(db,'users',uid,'images',im.id),{data:im.data, addedAt:im.addedAt||nowIso()}]); sync.remote.images.add(im.id); }
+  for(const id of [...sync.remote.images]) if(!images.some(i=>i.id===id)){ ops.push(['del',F.doc(db,'users',uid,'images',id)]); sync.remote.images.delete(id); }
+  const fk=new Map(feed.map(f=>[f.key,f]));
+  for(const [k,f] of fk){ const c=canon(feedItem(f)); if(sync.remote.feed.get(k)!==c){ ops.push(['set',F.doc(db,'users',uid,'feed',feedDocId(k)),feedItem(f)]); sync.remote.feed.set(k,c); } }
+  for(const k of [...sync.remote.feed.keys()]) if(!fk.has(k)){ ops.push(['del',F.doc(db,'users',uid,'feed',feedDocId(k))]); sync.remote.feed.delete(k); }
+  if(!ops.length) return;
+  setSyncStatus('syncing');
+  try{
+    // картинки — окремими записами (великі), решта — пачками
+    for(let i=0;i<ops.length;i+=20){ const b=F.writeBatch(db); for(const [t,ref,data] of ops.slice(i,i+20)) t==='set'?b.set(ref,data):b.delete(ref); await b.commit(); }
+    setSyncStatus('ok');
+  }catch(e){ setSyncStatus('error', fbErr(e)); }
+}
+/* ---- Вікно входу / реєстрації ---- */
+function openAuth(mode='login'){
+  return new Promise(res=>{
+    let busy=false, err='', info='';
+    const m=openModal(()=>`<div class="sheet-head"><h2>${mode==='login'?'Вхід':'Новий акаунт'}</h2><button class="icon-btn" data-a="close" aria-label="Закрити">${ICONS.close}</button></div>
+      <p class="small" style="margin:0 0 14px">${mode==='login'?'Увійди з тією ж поштою й паролем, що й на іншому пристрої, і твої задачі з’являться тут.':'Акаунт потрібен, щоб твої задачі були однакові на телефоні, планшеті й у браузері. Дані бачиш тільки ти.'}</p>
+      <div class="segmented" style="margin-top:0">${[['login','Вхід'],['register','Реєстрація']].map(([k,l])=>`<button class="${mode===k?'on':''}" data-a="mode" data-v="${k}">${l}</button>`).join('')}</div>
+      <form data-f="auth" novalidate>
+        <label class="field"><span>Пошта</span><input class="input" name="email" type="email" autocomplete="email" inputmode="email" placeholder="name@gmail.com"></label>
+        <label class="field"><span>Пароль</span><input class="input" name="pass" type="password" autocomplete="${mode==='login'?'current-password':'new-password'}" placeholder="${mode==='login'?'Твій пароль':'Щонайменше 6 символів'}"></label>
+        ${mode==='register'?'<label class="field"><span>Повтори пароль</span><input class="input" name="pass2" type="password" autocomplete="new-password"></label>':''}
+        ${err?`<div class="notice danger"><div class="grow">${esc(err)}</div></div>`:''}${info?`<div class="notice info"><div class="grow">${esc(info)}</div></div>`:''}
+        <button class="btn primary block" type="submit" ${busy?'disabled':''}>${busy?'Зачекай…':(mode==='login'?'Увійти':'Створити акаунт')}</button>
+        ${mode==='login'?'<button type="button" class="btn ghost block" data-a="forgot" style="margin-top:6px">Забули пароль?</button>':''}
+      </form>`, {onClose:()=>res(!!sync.user)});
+    const vals=()=>{ const f=$('form',m.sheet).elements; return {email:f.email.value.trim(), pass:f.pass.value, pass2:f.pass2?f.pass2.value:''}; };
+    const keep=v=>{ const f=$('form',m.sheet).elements; f.email.value=v.email; f.pass.value=v.pass; if(f.pass2) f.pass2.value=v.pass2; };
+    m.sheet.addEventListener('click', async e=>{
+      const b=e.target.closest('[data-a]'); if(!b) return;
+      if(b.dataset.a==='close') return m.close();
+      if(b.dataset.a==='mode'){ const v=vals(); mode=b.dataset.v; err=''; info=''; m.render(); keep(v); return; }
+      if(b.dataset.a==='forgot'){ const v=vals(); if(!v.email){ err='Введи пошту, і ми надішлемо лист для зміни пароля'; m.render(); keep(v); return; }
+        try{ await FB.sendPasswordResetEmail(sync.auth, v.email); err=''; info='Лист для зміни пароля надіслано на '+v.email+'. Перевір також «Спам».'; }catch(x){ err=fbErr(x); info=''; } m.render(); keep(v); }
+    });
+    m.sheet.addEventListener('submit', async e=>{
+      e.preventDefault(); if(busy) return; const v=vals(); err=''; info='';
+      if(!v.email){ err='Введи пошту'; m.render(); keep(v); return; }
+      if(mode==='register' && v.pass!==v.pass2){ err='Паролі не збігаються'; m.render(); keep(v); return; }
+      busy=true; m.render(); keep(v);
+      try{
+        if(mode==='login') await FB.signInWithEmailAndPassword(sync.auth, v.email, v.pass);
+        else await FB.createUserWithEmailAndPassword(sync.auth, v.email, v.pass);
+        m.close(); toast(mode==='login'?'Вхід виконано ✓ Синхронізую…':'Акаунт створено ✓ Синхронізую…');
+      }catch(x){ busy=false; err=fbErr(x); m.render(); keep(v); }
+    });
+  });
+}
+async function logoutFlow(){
+  const v=await dialog({title:'Вийти з акаунта?', text:'Дані в акаунті збережуться. А що зробити з копією на цьому пристрої?',
+    buttons:[{label:'Вийти й залишити копію тут',value:'keep',kind:'primary'},{label:'Вийти й очистити пристрій',value:'clear',kind:'danger'},{label:'Скасувати',value:null}]});
+  if(!v) return;
+  stopSync(); try{ await FB.signOut(sync.auth); }catch(e){}
+  try{ localStorage.removeItem(SYNC_UID_KEY); }catch(e){}
+  if(v==='clear'){ const keep={theme:state.settings.theme, gender:state.settings.gender, tutorialSeen:true}; state=defaultState(); Object.assign(state.settings, keep); images=[]; try{ await mediaTx('readwrite',s=>s.clear()); }catch(e){} save(); }
+  render(); toast(G3('Ти вийшов з акаунта','Ти вийшла з акаунта','Вихід виконано'));
+}
+function syncCardHTML(){
+  let h=`<h2 class="section-title">☁️ Синхронізація</h2><div class="card sync-card">`;
+  if(!SYNC_OK) return h+`<div class="small">Синхронізація між пристроями працює у встановленому застосунку та браузерній версії.</div></div>`;
+  if(!sync.user) return h+`<div class="small" style="margin-bottom:12px">Увійди з поштою й паролем, щоб твої задачі були однакові на телефоні, планшеті й у браузері.</div>
+    <div class="btn-row"><button class="btn primary" data-action="auth" data-v="login">Увійти</button><button class="btn" data-action="auth" data-v="register">Створити акаунт</button></div></div>`;
+  return h+`<div class="list-item" style="padding-top:0"><div class="emoji-box" style="--c:#4f46e5">👤</div><div class="grow"><div style="font-weight:600;word-break:break-all">${esc(sync.user.email||'')}</div><div class="small" id="syncStatus">${syncStatusText()}</div></div></div>
+    <button class="btn block" data-action="logout">Вийти з акаунта</button></div>`;
+}
+
+/* ========== Старт ========== */
+nativeInit();
+if(!NATIVE && 'serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').then(r=>{ swReg=r; if(notifState()==='granted') registerPeriodic(); }).catch(()=>{});
+  navigator.serviceWorker.addEventListener('message',e=>{
+    if(!e.data) return;
+    if(e.data.openReview) openReview();
+    else if(e.data.openGoal&&goalById(e.data.openGoal)){ openGoal(e.data.openGoal); if(e.data.resched) reschedule(e.data.openGoal); }
+    if(e.data.feedChanged) loadFeed();
+  });
+}
+$('#bell').addEventListener('click',openBellList);
+syncInit();
+if(typeof DEMO_SEED==='function') DEMO_SEED();   // лише в демо-прототипі
+render();
+loadFeed();
+loadImages().then(()=>{ if(ui.view==='settings') render(); });
+syncSchedule().then(checkReminders);
+setInterval(()=>{ checkReminders(); if(!modalStack.length && ui.view==='goals') render(); }, 60000);
+const qs=new URLSearchParams(location.search), qGoal=qs.get('goal');
+if(qs.has('review')){ history.replaceState(null,'',location.pathname); openReview(); }
+else if(qGoal && goalById(qGoal)){ history.replaceState(null,'',location.pathname); openGoal(qGoal); if(qs.has('resched')) reschedule(qGoal); }
+else if(!hasGender() || !state.settings.tutorialSeen) setTimeout(async ()=>{
+  // новий пристрій: пропонуємо увійти, щоб підтягнути задачі з інших пристроїв
+  let known=null; try{ known=localStorage.getItem(SYNC_UID_KEY); }catch(e){}
+  if(SYNC_OK && !known && !state.settings.tutorialSeen && !state.goals.length){
+    await new Promise(r=>setTimeout(r,600));
+    if(!sync.user){
+      const v=await dialog({title:'Вже користуєшся застосунком на іншому пристрої?', text:'Увійди у свій акаунт, і твої задачі з’являться тут. Або почни з чистого аркуша — акаунт можна створити пізніше в Налаштуваннях.',
+        buttons:[{label:'☁️ Увійти в акаунт',value:'login',kind:'primary'},{label:'Почати з нуля',value:'new'}]});
+      if(v==='login'){ const ok=await openAuth('login'); if(ok||sync.user) await waitSyncReady(6000); }
+    }
+  }
+  if(!hasGender()) await askGender();          // спершу питаємо, як звертатися
+  if(!state.settings.tutorialSeen) startTour(true);   // перший запуск — інтерактивний тур
+}, 400);
+</script>
+</body>
+</html>
