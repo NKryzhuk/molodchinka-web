@@ -200,12 +200,12 @@ textarea.input{resize:vertical;min-height:80px}
 .stat .num{font-size:30px;font-weight:800;letter-spacing:-.02em}
 .stat .lbl{font-size:13px;color:var(--muted);font-weight:600}
 .section-title{font-size:18px;margin:22px 0 10px}
-.weeks{display:flex;align-items:flex-end;gap:8px;height:150px;padding-top:18px}
-.weeks .col{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end}
+.weeks{display:flex;align-items:flex-end;gap:6px;height:150px;padding-top:18px;overflow:hidden}
+.weeks .col{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end}
 .weeks .col i{display:block;width:100%;max-width:34px;background:var(--primary);border-radius:6px 6px 2px 2px;min-height:2px}
 .weeks .col.zero i{background:var(--border)}
 .weeks .col b{font-size:12px}
-.weeks .col span{font-size:11px;color:var(--muted);white-space:nowrap}
+.weeks .col span{font-size:10.5px;color:var(--muted);white-space:nowrap;min-height:1.2em;letter-spacing:-.02em}
 .catstat{display:flex;flex-direction:column;gap:12px}
 .catstat .top{display:flex;justify-content:space-between;font-size:14px;margin-bottom:5px;gap:8px}
 .badges{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
@@ -366,7 +366,7 @@ const STORE_KEY = 'achievement-tracker-v1';
 const NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
 const CP = NATIVE ? window.Capacitor.Plugins : {};
 let nativePerm='default';
-const APP_VERSION = '2.2.1';
+const APP_VERSION = '2.2.2';
 const COLORS = ['#4f46e5','#d9488a','#22915f','#c97a12','#0e8fd1','#8b3fd9','#dc3e44','#5b6475','#0f9b9b','#a0522d'];
 const EMOJIS = ['🌱','💼','💪','📚','🧘','❤️','💰','🏠','✈️','🎨','🎵','🍎','🏃','🧠','💻','📈','🎓','👨‍👩‍👧','🐾','🌍','⚽','🛠️','✍️','⭐'];
 const DEFAULT_CATS = [
@@ -738,7 +738,7 @@ function renderStats(){
   // графік: дні / тижні / місяці
   const MSHORT=['Січ','Лют','Бер','Кві','Тра','Чер','Лип','Сер','Вер','Жов','Лис','Гру'];
   const buckets=[]; const mode=ui.chart;
-  if(mode==='days'){ for(let i=9;i>=0;i--){ const st=startOfDay(now); st.setDate(st.getDate()-i); const en=new Date(st); en.setDate(en.getDate()+1); buckets.push({st,en,label:i===0?'Сьог.':fmtShort(st)}); } }
+  if(mode==='days'){ for(let i=9;i>=0;i--){ const st=startOfDay(now); st.setDate(st.getDate()-i); const en=new Date(st); en.setDate(en.getDate()+1); buckets.push({st,en,label:i===0?'Сьог.':(i%2===0?fmtShort(st):'')}); } }
   else if(mode==='months'){ for(let i=11;i>=0;i--){ const st=new Date(now.getFullYear(),now.getMonth()-i,1); const en=new Date(st.getFullYear(),st.getMonth()+1,1); buckets.push({st,en,label:MSHORT[st.getMonth()]}); } }
   else { for(let i=7;i>=0;i--){ const st=new Date(weekStart); st.setDate(st.getDate()-i*7); const en=new Date(st); en.setDate(en.getDate()+7); buckets.push({st,en,label:i===0?'Цей':fmtShort(st)}); } }
   for(const b of buckets) b.n=s.done.filter(g=>g.completedAt&&new Date(g.completedAt)>=b.st&&new Date(g.completedAt)<b.en).length;
