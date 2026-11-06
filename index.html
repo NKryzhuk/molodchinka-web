@@ -32,6 +32,27 @@
   --danger:#d23b4a;--danger-soft:#fdeaec;--success:#2a9467;--success-soft:#e3f5ec;--warn:#c47614;--warn-soft:#fdf1e0;--prio-med:#eab308;
   --shadow:0 1px 2px rgba(120,30,70,.06),0 4px 14px rgba(120,30,70,.08);
 }
+[data-theme="business"]{
+  --bg:#070d1f;--surface:#101a33;--surface-2:#16223f;--text:#e9edf5;--muted:#93a0ba;--border:#24345a;
+  --primary:#1c3a78;--primary-soft:#c9d5ea;--on-primary:#fff;
+  --danger:#ff7a7f;--danger-soft:#3a2026;--success:#5cc79a;--success-soft:#15322a;--warn:#f0b45e;--warn-soft:#382c18;--prio-med:#e8b500;
+  --shadow:0 2px 4px rgba(0,0,0,.5),0 10px 24px rgba(0,0,0,.45);
+}
+/* «Бізнес»: глибокий темно-синій інтерфейс, блоки — шліфоване срібло (срібні лати) */
+[data-theme="business"] body{background:radial-gradient(120% 60% at 50% 0%,#12204a 0%,#070d1f 60%) fixed}
+[data-theme="business"] .topbar{background:#070d1f}
+[data-theme="business"] .tabbar{background:linear-gradient(180deg,#0f1a36,#070d1f);border-top:1px solid #2a3b63}
+[data-theme="business"] .tab.active{color:#d4dceb}
+[data-theme="business"] :is(.card,.goal-card,.sheet,.segmented,.chip:not(.on),.select-btn,[id=bell],.tour-tip,.toast){
+  --text:#121b2f;--muted:#465269;--surface:#f1f4f8;--surface-2:rgba(255,255,255,.42);--border:rgba(18,27,47,.18);--primary-soft:rgba(28,58,120,.14);color:var(--text);
+  background:repeating-linear-gradient(90deg,rgba(255,255,255,.07) 0 1px,transparent 1px 3px),linear-gradient(165deg,#f1f4f8 0%,#c3ccd8 38%,#e9edf2 55%,#aeb8c6 100%);
+  border:1px solid #8994a5;box-shadow:inset 0 1px 0 rgba(255,255,255,.8),inset 0 -1px 0 rgba(0,0,0,.15),var(--shadow)}
+[data-theme="business"] .segmented button.on{background:linear-gradient(180deg,#fff,#dde3eb);box-shadow:0 1px 3px rgba(0,0,0,.25)}
+[data-theme="business"] :is(.fab,.btn.primary,.chip.on){background:linear-gradient(180deg,#2c4f96 0%,#162e63 100%);border:1px solid #c3ccd8;color:#fff}
+[data-theme="business"] .theme-opt.on{border-color:#c9d5ea}
+[data-theme="business"] .resched-box{background:rgba(201,213,234,.14);--primary:#c9d5ea}
+[data-theme="business"] .notice.info{--primary:#c9d5ea;--primary-soft:rgba(201,213,234,.14)}
+[data-theme="business"] .sheet .notice.info,[data-theme="business"] .card .notice.info{--primary:#1c3a78;--primary-soft:rgba(28,58,120,.14)}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font);font-size:16px;line-height:1.4}
 body{min-height:100dvh;padding-bottom:calc(76px + env(safe-area-inset-bottom))}
@@ -226,8 +247,9 @@ textarea.input{resize:vertical;min-height:80px}
 .list-item:last-child{border:0}
 .list-item .grow{flex:1;min-width:0}
 .emoji-box{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-size:20px;background:color-mix(in srgb,var(--c,#888) 16%,transparent);flex:none}
-.themes{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-.theme-opt{border:2px solid var(--border);border-radius:14px;padding:10px;text-align:center;font-weight:600;font-size:14px}
+.themes{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+@media(max-width:340px){.themes{grid-template-columns:repeat(2,1fr)}}
+.theme-opt{border:2px solid var(--border);border-radius:14px;padding:8px 6px;text-align:center;font-weight:600;font-size:14px}
 .theme-opt.on{border-color:var(--primary)}
 .theme-opt .sw{height:46px;border-radius:9px;margin-bottom:8px;display:flex;align-items:flex-end;padding:6px;gap:4px;border:1px solid rgba(0,0,0,.06)}
 .theme-opt .sw i{height:8px;border-radius:4px;flex:1}
@@ -431,7 +453,7 @@ const STORE_KEY = 'achievement-tracker-v1';
 const NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
 const CP = NATIVE ? window.Capacitor.Plugins : {};
 let nativePerm='default';
-const APP_VERSION = '2.6.2';
+const APP_VERSION = '2.7.0';
 const COLORS = ['#4f46e5','#d9488a','#22915f','#c97a12','#0e8fd1','#8b3fd9','#dc3e44','#5b6475','#0f9b9b','#a0522d'];
 const EMOJIS = ['🌱','💼','💪','📚','🧘','❤️','💰','🏠','✈️','🎨','🎵','🍎','🏃','🧠','💻','📈','🎓','👨‍👩‍👧','🐾','🌍','⚽','🛠️','✍️','⭐'];
 const DEFAULT_CATS = [
@@ -442,7 +464,7 @@ const REMINDERS = [
   ['none','Без нагадування'],['0','У день дедлайну'],['1h','За 1 годину'],['1d','За 1 день'],['3d','За 3 дні'],['1w','За тиждень']
 ];
 const PRIORITIES = {high:'Високий', med:'Середній', low:'Низький'};
-const THEME_COLORS = {light:'#f5f6fa', dark:'#111217', pink:'#fff4f8'};
+const THEME_COLORS = {light:'#f5f6fa', dark:'#111217', pink:'#fff4f8', business:'#070d1f'};
 
 /* ========== Утиліти ========== */
 const $ = (s, r=document) => r.querySelector(s);
@@ -919,9 +941,9 @@ function renderStats(){
 
 function renderSettings(){
   const t=state.settings.theme;
-  const sw={light:['#f5f6fa','#4f46e5','#e4e6ee'],dark:['#1b1c23','#8f89ff','#2d2f39'],pink:['#fff4f8','#d9488a','#f5d8e4']};
+  const sw={light:['#f5f6fa','#4f46e5','#e4e6ee'],dark:['#1b1c23','#8f89ff','#2d2f39'],pink:['#fff4f8','#d9488a','#f5d8e4'],business:['linear-gradient(165deg,#f1f4f8,#aeb8c6 60%,#e9edf2)','#1c3a78','#070d1f']};
   let h=syncCardHTML();
-  h+=`<h2 class="section-title">Тема</h2><div class="themes">${[['light','Світла'],['dark','Темна'],['pink','Рожева']].map(([k,l])=>`<button class="theme-opt ${t===k?'on':''}" data-action="theme" data-v="${k}"><div class="sw" style="background:${sw[k][0]}"><i style="background:${sw[k][1]}"></i><i style="background:${sw[k][2]}"></i></div>${l}</button>`).join('')}</div>`;
+  h+=`<h2 class="section-title">Тема</h2><div class="themes">${[['light','Світла'],['dark','Темна'],['pink','Рожева'],['business','Бізнес']].map(([k,l])=>`<button class="theme-opt ${t===k?'on':''}" data-action="theme" data-v="${k}"><div class="sw" style="background:${sw[k][0]}"><i style="background:${sw[k][1]}"></i><i style="background:${sw[k][2]}"></i></div>${l}</button>`).join('')}</div>`;
 
   const gd=state.settings.gender||'';
   h+=`<h2 class="section-title">Звертання</h2><div class="card">
@@ -1531,7 +1553,7 @@ function tutorialSlides(){
     {e:'☁️', t:'Синхронізація', l:'Користуйся застосунком на кількох пристроях одночасно.',
       li:[['🔐','Створи акаунт з поштою й паролем у Налаштуваннях'],['📱','Увійди з тим самим акаунтом на телефоні, планшеті чи в браузері'],['🔄','Зміни з’являються на всіх пристроях за кілька секунд'],['📴','Без інтернету все працює, а зміни надішлються пізніше']]},
     {e:'⚙️', t:'Налаштування', l:'Зроби застосунок своїм.',
-      li:[['🎨','Тема: світла, темна чи рожева'],['🗂️','Власні категорії: емодзі й колір'],['🙂','Звертання: жіночий чи чоловічий рід'],['🔔','Нагадування та щоденний підсумок'],['💾','Унизу Налаштувань — блок «Резервна копія та імпорт»: розгорни, щоб зберегти дані у файл або відновити з файлу']]},
+      li:[['🎨','Тема: світла, темна, рожева чи «Бізнес»'],['🗂️','Власні категорії: емодзі й колір'],['🙂','Звертання: жіночий чи чоловічий рід'],['🔔','Нагадування та щоденний підсумок'],['💾','Унизу Налаштувань — блок «Резервна копія та імпорт»: розгорни, щоб зберегти дані у файл або відновити з файлу']]},
     {e:'📲', t:'Майже готово!', l:'Кілька порад, щоб усе працювало найкраще:', last:true,
       li:[...(NATIVE?[]:[['🏠','Встанови застосунок на головний екран: у Chrome меню ⋮ → «Установити додаток»']]),['🔔','Увімкни сповіщення, щоб не пропускати підсумок дня'],...(sync&&sync.user?[]:[['☁️','Створи акаунт, щоб дані зберігалися надійно, або раз на тиждень роби резервну копію']]),['📖','Опис функцій і тур завжди є в Налаштуваннях → «Ознайомитись із функціями»']]},
   ];
