@@ -328,6 +328,11 @@ textarea.input{resize:vertical;min-height:80px}
 .cal-item .ci-ok{color:var(--success);font-weight:800}
 .cd-list{margin-bottom:8px}
 
+/* згортальний блок у налаштуваннях */
+.fold-card{padding:0;overflow:hidden;margin-top:18px}
+.fold-head{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:14px 16px;font-weight:700;font-size:15px;text-align:left;color:var(--text)}
+.fold-body{padding:0 16px 16px}
+
 /* блок «перепланувати» */
 .resched-box{background:var(--primary-soft);border-radius:var(--radius-sm);margin-bottom:12px;overflow:hidden}
 .resched-head{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:12px 14px;color:var(--primary);font-weight:700;font-size:15px;text-align:left}
@@ -426,7 +431,7 @@ const STORE_KEY = 'achievement-tracker-v1';
 const NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
 const CP = NATIVE ? window.Capacitor.Plugins : {};
 let nativePerm='default';
-const APP_VERSION = '2.6.1';
+const APP_VERSION = '2.6.2';
 const COLORS = ['#4f46e5','#d9488a','#22915f','#c97a12','#0e8fd1','#8b3fd9','#dc3e44','#5b6475','#0f9b9b','#a0522d'];
 const EMOJIS = ['🌱','💼','💪','📚','🧘','❤️','💰','🏠','✈️','🎨','🎵','🍎','🏃','🧠','💻','📈','🎓','👨‍👩‍👧','🐾','🌍','⚽','🛠️','✍️','⭐'];
 const DEFAULT_CATS = [
@@ -948,18 +953,19 @@ function renderSettings(){
   h+=`<h2 class="section-title">Категорії</h2><div class="card"><div class="list">${state.categories.map(c=>{const n=state.goals.filter(g=>g.categoryId===c.id).length;return `<div class="list-item"><div class="emoji-box" style="--c:${esc(c.color)}">${esc(c.emoji)}</div><div class="grow"><div style="font-weight:600;color:${esc(c.color)}">${esc(c.name)}</div><div class="small">${n} ${plural(n,['задача','задачі','задач'])}</div></div><button class="icon-btn" data-action="edit-cat" data-id="${esc(c.id)}" aria-label="Редагувати">${ICONS.edit}</button><button class="icon-btn" data-action="del-cat" data-id="${esc(c.id)}" aria-label="Видалити">${ICONS.trash}</button></div>`}).join('')}</div>
     <button class="btn ghost block" data-action="new-cat">${ICONS.plus.replace('<svg','<svg width="20" height="20"')} Нова категорія</button></div>`;
 
-  const lb=state.settings.lastBackup;
-  const old=!lb || (Date.now()-new Date(lb))>30*86400e3;
-  h+=`<h2 class="section-title">Резервна копія</h2><div class="card">
-    ${state.goals.length&&old?'<div class="notice warn"><div class="grow">Давно не було резервної копії. Збережіть файл, щоб не втратити дані.</div></div>':''}
-    <div class="small" style="margin-bottom:12px">Останнє збереження: ${lb?new Date(lb).toLocaleString('uk-UA',{day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'}):'ще не було'}.<br>Файл копії можна перенести на інший пристрій і там імпортувати.</div>
-    <div class="btn-row"><button class="btn primary" data-action="export">💾 Експорт у файл</button><button class="btn" data-action="import">📂 Імпорт з файлу</button></div></div>`;
-
   h+=`<h2 class="section-title">Ознайомитись із функціями</h2><div class="card"><div class="small" style="margin-bottom:10px">Опис усіх можливостей застосунку та тур, який покаже, де що знаходиться</div>
     <div class="btn-row" style="flex-direction:column"><button class="btn primary block" data-action="slides">📖 Опис усіх функцій</button><button class="btn block" data-action="tour">🧭 Пройти тур застосунком</button></div></div>`;
   if(!NATIVE) h+=`<h2 class="section-title">Встановлення</h2><div class="card">${deferredInstall?'<button class="btn primary block" data-action="install">📲 Встановити на головний екран</button>':
     (matchMedia('(display-mode: standalone)').matches?'<div>✅ Застосунок встановлено</div>':'<div class="small">У Chrome відкрийте меню ⋮ → «Додати на головний екран» або «Установити додаток».</div>')}</div>`;
-  h+=`<div class="small" style="text-align:center;margin:24px 0">Трекер досягнень · версія ${APP_VERSION}<br>Дані зберігаються лише на цьому пристрої</div>`;
+  const lb=state.settings.lastBackup, acc=!!(typeof sync!=='undefined'&&sync.user);
+  const old=!lb || (Date.now()-new Date(lb))>30*86400e3, bOpen=uiPref('backupOpen', false);
+  const lbText=lb?new Date(lb).toLocaleString('uk-UA',{day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'}):'ще не було';
+  h+=`<div class="card fold-card backup-card"><button class="fold-head" data-action="toggle-backup" aria-expanded="${bOpen}"><span>💾 Резервна копія та імпорт</span><span class="chev ${bOpen?'open':''}"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span></button>
+    ${bOpen?`<div class="fold-body">
+      ${!acc&&state.goals.length&&old?'<div class="notice warn"><div class="grow">Давно не було резервної копії. Збережи файл, щоб не втратити дані.</div></div>':''}
+      <div class="small" style="margin-bottom:12px">${acc?'Твої дані вже зберігаються в акаунті. Копія у файл знадобиться, якщо випадково щось видалиш або захочеш перенести дані в інший акаунт.':'Файл копії можна перенести на інший пристрій і там імпортувати.'}<br>Останнє збереження у файл: ${lbText}.</div>
+      <div class="btn-row"><button class="btn primary" data-action="export">💾 Експорт у файл</button><button class="btn" data-action="import">📂 Імпорт з файлу</button></div></div>`:''}</div>`;
+  h+=`<div class="small" style="text-align:center;margin:24px 0">Трекер досягнень · версія ${APP_VERSION}<br>${acc?'Дані зберігаються в акаунті й на цьому пристрої':'Дані зберігаються лише на цьому пристрої'}</div>`;
   return h;
 }
 
@@ -1395,7 +1401,7 @@ const TOUR=[
   {ctx:'review', sel:'[data-a=voice]', also:[['.rv-item']], t:'📝 Підсумок дня', x:'Щовечора о 21:00 у дзвіночку 🔔 з’являється нагадування. Відміть, що вдалося, або просто розкажи голосом, і ШІ відмітить сам. Нові справи додаються внизу, а якщо був відпочинок, натисни 🌿.'},
   {view:'stats', sel:'.stat-row', also:[['.weeks','.card']], t:'🏆 Досягнення', x:'Скільки всього зроблено, графік за днями, тижнями й місяцями, прогрес за категоріями й нагороди, що відкриваються самі.'},
   {view:'settings', sel:'.sync-card', t:'☁️ Синхронізація', x:'Створи акаунт з поштою й паролем, і задачі будуть однакові на телефоні, планшеті й у браузері. Дані бачиш тільки ти.'},
-  {view:'settings', sel:'.themes', also:[['[data-action=gender]','.card']], t:'⚙️ Налаштування', x:'Тема й звертання, нагадування, власні категорії (будь-яке емодзі й колір), 💌 листи від себе, святкові картинки й резервна копія — усе тут.'},
+  {view:'settings', sel:'.themes', also:[['[data-action=gender]','.card']], t:'⚙️ Налаштування', x:'Тема й звертання, нагадування, власні категорії (будь-яке емодзі й колір), 💌 листи від себе й святкові картинки. А в самому низу — блок «💾 Резервна копія та імпорт».'},
   {center:true, last:true, t:'Готово! ✨', x:'Опис функцій і цей тур завжди є в Налаштуваннях → «Ознайомитись із функціями». Створи першу задачу, і почнімо збирати перемоги 💛'},
 ];
 function startTour(first){
@@ -1525,9 +1531,9 @@ function tutorialSlides(){
     {e:'☁️', t:'Синхронізація', l:'Користуйся застосунком на кількох пристроях одночасно.',
       li:[['🔐','Створи акаунт з поштою й паролем у Налаштуваннях'],['📱','Увійди з тим самим акаунтом на телефоні, планшеті чи в браузері'],['🔄','Зміни з’являються на всіх пристроях за кілька секунд'],['📴','Без інтернету все працює, а зміни надішлються пізніше']]},
     {e:'⚙️', t:'Налаштування', l:'Зроби застосунок своїм.',
-      li:[['🎨','Тема: світла, темна чи рожева'],['🗂️','Власні категорії: емодзі й колір'],['🙂','Звертання: жіночий чи чоловічий рід'],['🔔','Нагадування та щоденний підсумок'],['💾','Резервна копія: експорт у файл та імпорт, щоб перенести дані на інший пристрій']]},
+      li:[['🎨','Тема: світла, темна чи рожева'],['🗂️','Власні категорії: емодзі й колір'],['🙂','Звертання: жіночий чи чоловічий рід'],['🔔','Нагадування та щоденний підсумок'],['💾','Унизу Налаштувань — блок «Резервна копія та імпорт»: розгорни, щоб зберегти дані у файл або відновити з файлу']]},
     {e:'📲', t:'Майже готово!', l:'Кілька порад, щоб усе працювало найкраще:', last:true,
-      li:[...(NATIVE?[]:[['🏠','Встанови застосунок на головний екран: у Chrome меню ⋮ → «Установити додаток»']]),['🔔','Увімкни сповіщення, щоб не пропускати підсумок дня'],['💾','Раз на тиждень роби резервну копію'],['📖','Опис функцій і тур завжди є в Налаштуваннях → «Ознайомитись із функціями»']]},
+      li:[...(NATIVE?[]:[['🏠','Встанови застосунок на головний екран: у Chrome меню ⋮ → «Установити додаток»']]),['🔔','Увімкни сповіщення, щоб не пропускати підсумок дня'],...(sync&&sync.user?[]:[['☁️','Створи акаунт, щоб дані зберігалися надійно, або раз на тиждень роби резервну копію']]),['📖','Опис функцій і тур завжди є в Налаштуваннях → «Ознайомитись із функціями»']]},
   ];
 }
 function openTutorial(first){
@@ -1798,6 +1804,7 @@ $('#view').addEventListener('click',async e=>{
   else if(a==='cal-today'){ ui.calDate=startOfDay(new Date()); render(); }
   else if(a==='cal-day'){ ui.calDate=parseYmd(b.dataset.d); setUiPref('calMode','day'); render(); }
   else if(a==='cal-add') openGoalForm(null, null, {deadline:b.dataset.d});
+  else if(a==='toggle-backup'){ setUiPref('backupOpen', !uiPref('backupOpen', false)); render(); }
   else if(a==='toggle-resched'){ setUiPref('reschedOpen', !uiPref('reschedOpen', false)); render(); }
   else if(a==='gender'){ state.settings.gender=v; save(); render(); toast('Збережено'); }
   else if(a==='slides') openTutorial(false);
