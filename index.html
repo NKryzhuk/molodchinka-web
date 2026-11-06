@@ -295,6 +295,39 @@ textarea.input{resize:vertical;min-height:80px}
 .burst{position:fixed;inset:0;pointer-events:none;z-index:130;overflow:hidden}
 .burst span{position:absolute;left:50%;top:45%;font-size:34px;will-change:transform,opacity}
 
+/* список: сортування й групи */
+.mode-seg{margin-top:2px}
+.sort-row{display:flex;align-items:center;justify-content:flex-end;gap:10px;margin:-2px 0 10px}
+.sort-row .select-btn{width:auto;min-height:38px;padding:7px 12px;font-size:14px;font-weight:600}
+.grp{font-size:15px;margin:16px 0 8px;color:var(--text)}
+/* календар */
+.cal-nav{display:flex;align-items:center;gap:6px;margin:0 0 10px}
+.cal-nav b{flex:1;text-align:center;font-size:17px}
+.cal-card{padding:10px}
+.cm-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.cm-wd{text-align:center;font-size:11px;font-weight:700;color:var(--muted);padding:2px 0 4px}
+.cm-day{min-height:74px;border-radius:10px;background:var(--surface-2);padding:4px 3px;display:flex;flex-direction:column;align-items:stretch;gap:2px;text-align:left;overflow:hidden}
+.cm-day.other{opacity:.45}
+.cm-day.today{box-shadow:inset 0 0 0 2px var(--primary)}
+.cm-n{font-size:12px;font-weight:700;padding-left:2px}
+.cm-day.today .cm-n{color:var(--primary)}
+.cm-chip{display:flex;align-items:center;gap:2px;font-size:10.5px;line-height:1.25;border-radius:5px;padding:1px 3px;background:color-mix(in srgb,var(--c) 18%,transparent);border-left:3px solid var(--c);overflow:hidden;white-space:nowrap}
+.cm-chip .t{overflow:hidden;text-overflow:ellipsis}
+.cm-chip.done{opacity:.55;text-decoration:line-through}
+.cm-more{font-size:10px;color:var(--muted);padding-left:2px}
+@media(max-width:560px){ .cm-chip .t{display:none} .cm-chip{justify-content:center;border-left-width:0;font-size:12px} }
+.cw-day{padding:6px 2px;border-bottom:1px solid var(--border)} .cw-day:last-child{border:0}
+.cw-head{display:flex;gap:6px;align-items:baseline;width:100%;text-align:left;padding:4px 6px;font-size:14px}
+.cw-head .small{margin-left:auto}
+.cw-day.today .cw-head{color:var(--primary)}
+.cw-empty{padding:2px 8px 6px}
+.cal-item{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:9px 10px;margin:4px 0;border-radius:10px;background:color-mix(in srgb,var(--c) 10%,var(--surface));border-left:4px solid var(--c);font-size:14px}
+.cal-item .ci-time{font-size:12px;font-weight:700;color:var(--muted);min-width:38px}
+.cal-item .ci-t{flex:1;min-width:0;word-break:break-word}
+.cal-item.done .ci-t{text-decoration:line-through;color:var(--muted)}
+.cal-item .ci-ok{color:var(--success);font-weight:800}
+.cd-list{margin-bottom:8px}
+
 /* блок «перепланувати» */
 .resched-box{background:var(--primary-soft);border-radius:var(--radius-sm);margin-bottom:12px;overflow:hidden}
 .resched-head{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:12px 14px;color:var(--primary);font-weight:700;font-size:15px;text-align:left}
@@ -393,7 +426,7 @@ const STORE_KEY = 'achievement-tracker-v1';
 const NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
 const CP = NATIVE ? window.Capacitor.Plugins : {};
 let nativePerm='default';
-const APP_VERSION = '2.5.0';
+const APP_VERSION = '2.6.0';
 const COLORS = ['#4f46e5','#d9488a','#22915f','#c97a12','#0e8fd1','#8b3fd9','#dc3e44','#5b6475','#0f9b9b','#a0522d'];
 const EMOJIS = ['🌱','💼','💪','📚','🧘','❤️','💰','🏠','✈️','🎨','🎵','🍎','🏃','🧠','💻','📈','🎓','👨‍👩‍👧','🐾','🌍','⚽','🛠️','✍️','⭐'];
 const DEFAULT_CATS = [
@@ -712,13 +745,18 @@ function goalsSubtitle(){
   const d=new Date().toLocaleDateString('uk-UA',{weekday:'long',day:'numeric',month:'long'});
   return d.charAt(0).toUpperCase()+d.slice(1)+' · '+a+' '+plural(a,['активна задача','активні задачі','активних задач']);
 }
+const SORTS=[['deadline','За дедлайном'],['category','За категорією'],['priority','За пріоритетом']];
+const PRIO_LABEL={high:'🔴 Високий пріоритет', med:'🟡 Середній пріоритет', low:'⚪ Низький пріоритет'};
 function sortGoals(list){
-  const pr={high:0,med:1,low:2};
-  if(ui.status==='active') return list.sort((a,b)=>{
-    const da=a.deadline?deadlineEnd(a).getTime():Infinity, db=b.deadline?deadlineEnd(b).getTime():Infinity;
-    return da-db || pr[a.priority]-pr[b.priority] || a.createdAt.localeCompare(b.createdAt);
-  });
-  return list.sort((a,b)=>(b.completedAt||b.updatedAt).localeCompare(a.completedAt||a.updatedAt));
+  const pr={high:0,med:1,low:2}, mode=uiPref('sort','deadline');
+  const dl=g=>g.deadline?deadlineEnd(g).getTime():Infinity;
+  const byDate = ui.status!=='active'
+    ? (a,b)=>(b.completedAt||b.updatedAt||'').localeCompare(a.completedAt||a.updatedAt||'')
+    : (a,b)=>dl(a)-dl(b);
+  const ci=id=>{ const i=state.categories.findIndex(c=>c.id===id); return i<0?999:i; };
+  if(mode==='category') return list.sort((a,b)=>ci(a.categoryId)-ci(b.categoryId) || byDate(a,b) || pr[a.priority]-pr[b.priority]);
+  if(mode==='priority') return list.sort((a,b)=>pr[a.priority]-pr[b.priority] || byDate(a,b));
+  return list.sort((a,b)=>byDate(a,b) || pr[a.priority]-pr[b.priority] || (a.createdAt||'').localeCompare(b.createdAt||''));
 }
 function renderGoals(){
   let h='';
@@ -739,9 +777,15 @@ function renderGoals(){
   if(deferredInstall && !state.settings.installHintDismissed)
     h+=`<div class="notice info"><div class="grow"><b>Встановіть застосунок</b>Додайте трекер на головний екран.</div><button class="act" data-action="install">Встановити</button><button class="act" data-action="dismiss-install" aria-label="Закрити">✕</button></div>`;
 
+  const gmode=uiPref('goalsMode','list');
+  h+=`<div class="segmented mode-seg">${[['list','📋 Список'],['cal','📅 Календар']].map(([k,l])=>`<button class="${gmode===k?'on':''}" data-action="goals-mode" data-v="${k}">${l}</button>`).join('')}</div>`;
+  const chipsHTML=`<div class="chips"><button class="chip ${ui.cat==='all'?'on':''}" data-action="cat" data-v="all">Усі</button>${state.categories.map(c=>`<button class="chip ${ui.cat===c.id?'on':''}" data-action="cat" data-v="${esc(c.id)}">${esc(c.emoji)} ${esc(c.name)}</button>`).join('')}</div>`;
+  if(gmode==='cal') return h+chipsHTML+renderCalendar();
   const counts={active:active.length, done:state.goals.filter(g=>g.status==='done').length, archived:state.goals.filter(g=>g.status==='archived').length};
   h+=`<div class="segmented" role="tablist">${[['active','Активні'],['done','Виконані'],['archived','Архів']].map(([k,l])=>`<button class="${ui.status===k?'on':''}" data-action="status" data-v="${k}">${l}${counts[k]?' · '+counts[k]:''}</button>`).join('')}</div>`;
-  h+=`<div class="chips"><button class="chip ${ui.cat==='all'?'on':''}" data-action="cat" data-v="all">Усі</button>${state.categories.map(c=>`<button class="chip ${ui.cat===c.id?'on':''}" data-action="cat" data-v="${esc(c.id)}">${esc(c.emoji)} ${esc(c.name)}</button>`).join('')}</div>`;
+  const sm=uiPref('sort','deadline');
+  h+=`<div class="sort-row"><span class="small">Сортування</span><select class="input sort-sel" data-action="sort" aria-label="Сортування">${SORTS.map(([k,l])=>`<option value="${k}" ${sm===k?'selected':''}>${l}</option>`).join('')}</select></div>`;
+  h+=chipsHTML;
 
   let list=state.goals.filter(g=>g.status===ui.status && (ui.cat==='all'||g.categoryId===ui.cat));
   list=sortGoals(list);
@@ -751,8 +795,63 @@ function renderGoals(){
       : ui.status==='done' ? ['🏁','Ще немає виконаних задач','Завершені задачі з’являться тут'] : ['🗄️','Архів порожній','Сюди можна відкладати задачі, які вже не актуальні'];
     return h+`<div class="empty"><div class="big">${msg[0]}</div><h3>${msg[1]}</h3><div>${msg[2]}</div></div>`;
   }
-  h+='<div class="grid">'+list.map(goalCard).join('')+'</div><div style="height:24px"></div>';
-  return h;
+  if(sm==='deadline'){ h+='<div class="grid">'+list.map(goalCard).join('')+'</div>'; }
+  else {
+    const key=sm==='category'?(g=>g.categoryId||''):(g=>g.priority);
+    const groups=[]; for(const g of list){ const k=key(g); let gr=groups.find(x=>x.k===k); if(!gr){ gr={k,items:[]}; groups.push(gr); } gr.items.push(g); }
+    for(const gr of groups){
+      const title = sm==='category' ? (c=>`${esc(c.emoji)} ${esc(c.name)}`)(cat(gr.k||null)) : PRIO_LABEL[gr.k];
+      h+=`<h3 class="grp">${title} <span class="small">· ${gr.items.length}</span></h3><div class="grid">${gr.items.map(goalCard).join('')}</div>`;
+    }
+  }
+  return h+'<div style="height:24px"></div>';
+}
+/* ---- 📅 Календар задач ---- */
+const MONTHS_GEN=['січня','лютого','березня','квітня','травня','червня','липня','серпня','вересня','жовтня','листопада','грудня'];
+const WD_SHORT=['Пн','Вт','Ср','Чт','Пт','Сб','Нд'];
+function calItems(){
+  const pr={high:0,med:1,low:2}, by={};
+  for(const g of state.goals){ if(g.status==='archived'||!g.deadline||g.id===TOUR_SAMPLE&&!tourActive) continue; if(ui.cat!=='all'&&g.categoryId!==ui.cat) continue; (by[g.deadline]=by[g.deadline]||[]).push(g); }
+  for(const k in by) by[k].sort((a,b)=>(a.status==='done')-(b.status==='done') || (a.time||'99').localeCompare(b.time||'99') || pr[a.priority]-pr[b.priority]);
+  return by;
+}
+function calItem(g){
+  const c=cat(g.categoryId), done=g.status==='done', od=!done&&deadlineInfo(g)&&deadlineInfo(g).overdue;
+  return `<button class="cal-item ${done?'done':''}" data-action="open" data-id="${esc(g.id)}" style="--c:${esc(c.color)}"><span class="ci-time">${g.time||''}</span><span class="ci-t">${esc(c.emoji)} ${esc(g.title)}</span>${done?'<span class="ci-ok">✓</span>':''}${od?'<span class="ci-od" title="Варто перепланувати">🗓</span>':''}</button>`;
+}
+function renderCalendar(){
+  const cm=uiPref('calMode','month'); const d0=ui.calDate?new Date(ui.calDate):startOfDay(new Date()); ui.calDate=d0;
+  const by=calItems(), today=ymd(new Date());
+  const monStart=d=>{ const x=startOfDay(d); x.setDate(x.getDate()-((x.getDay()+6)%7)); return x; };
+  let title='', body='';
+  if(cm==='month'){
+    const y=d0.getFullYear(), mo=d0.getMonth(); title=MONTHS[mo]+' '+y;
+    let cur=monStart(new Date(y,mo,1)); const end=new Date(y,mo+1,0);
+    let cells=WD_SHORT.map(w=>`<div class="cm-wd">${w}</div>`).join('');
+    while(cur<=end || (cur.getDay()+6)%7!==0){
+      const k=ymd(cur), list=by[k]||[], other=cur.getMonth()!==mo;
+      cells+=`<button class="cm-day ${other?'other':''} ${k===today?'today':''}" data-action="cal-day" data-d="${k}"><span class="cm-n">${cur.getDate()}</span>${list.slice(0,3).map(g=>{ const c=cat(g.categoryId); return `<span class="cm-chip ${g.status==='done'?'done':''}" style="--c:${esc(c.color)}"><span class="e">${esc(c.emoji)}</span><span class="t">${esc(g.title)}</span></span>`; }).join('')}${list.length>3?`<span class="cm-more">+${list.length-3}</span>`:''}</button>`;
+      cur.setDate(cur.getDate()+1); if(cur>end && (cur.getDay()+6)%7===0) break;
+    }
+    body=`<div class="cm-grid">${cells}</div>`;
+  } else if(cm==='week'){
+    const st=monStart(d0), en=new Date(st); en.setDate(en.getDate()+6);
+    title = st.getMonth()===en.getMonth() ? `${st.getDate()}–${en.getDate()} ${MONTHS_GEN[en.getMonth()]}` : `${st.getDate()} ${MONTHS_GEN[st.getMonth()]} – ${en.getDate()} ${MONTHS_GEN[en.getMonth()]}`;
+    for(let i=0;i<7;i++){ const d=new Date(st); d.setDate(st.getDate()+i); const k=ymd(d), list=by[k]||[];
+      body+=`<div class="cw-day ${k===today?'today':''}"><button class="cw-head" data-action="cal-day" data-d="${k}"><b>${WD_SHORT[i]}</b> ${fmtShort(d)}${k===today?' · сьогодні':''}<span class="small">${list.length?list.length+' '+plural(list.length,['задача','задачі','задач']):''}</span></button>${list.length?list.map(calItem).join(''):'<div class="small cw-empty">—</div>'}</div>`; }
+  } else {
+    const k=ymd(d0), list=by[k]||[], wd=d0.toLocaleDateString('uk-UA',{weekday:'long'});
+    title = wd.charAt(0).toUpperCase()+wd.slice(1)+', '+d0.getDate()+' '+MONTHS_GEN[d0.getMonth()];
+    body = (list.length?`<div class="cd-list">${list.map(calItem).join('')}</div>`:`<div class="empty" style="padding:26px 10px"><div class="big">🌿</div><div>На цей день задач немає</div></div>`)
+      + `<button class="btn ghost block" data-action="cal-add" data-d="${k}">＋ Додати задачу на цей день</button>`;
+  }
+  const noDl=state.goals.filter(g=>g.status==='active'&&!g.deadline&&(ui.cat==='all'||g.categoryId===ui.cat)).length;
+  return `<div class="segmented cal-seg" style="margin-top:0">${[['month','Місяць'],['week','Тиждень'],['day','День']].map(([k,l])=>`<button class="${cm===k?'on':''}" data-action="cal-mode" data-v="${k}">${l}</button>`).join('')}</div>
+    <div class="cal-nav"><button class="icon-btn" data-action="cal-nav" data-v="-1" aria-label="Назад"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <b>${title}</b><button class="icon-btn" data-action="cal-nav" data-v="1" aria-label="Вперед"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
+      <button class="chip" data-action="cal-today">Сьогодні</button></div>
+    <div class="card cal-card">${body}</div>
+    ${noDl?`<div class="small" style="text-align:center;margin:12px 0">${noDl===1?'Ще 1 задача без дедлайну — вона':`Ще ${noDl} ${plural(noDl,['задача','задачі','задач'])} без дедлайну — вони`} у режимі «📋 Список»</div>`:''}<div style="height:24px"></div>`;
 }
 function goalCard(g){
   const c=cat(g.categoryId), p=progress(g), di=deadlineInfo(g), n=g.subtasks.length, dn=g.subtasks.filter(s=>s.done).length;
@@ -947,7 +1046,7 @@ function openGoal(id){
 function touch(g){ g.updatedAt=nowIso(); }
 
 /* ---- Форма задачі ---- */
-function openGoalForm(id, after){
+function openGoalForm(id, after, preset={}){
   const g=id?goalById(id):null;
   const catId = g ? g.categoryId : (ui.cat!=='all'?ui.cat:(state.categories[0]||{}).id);
   const catOptions=(sel)=>state.categories.map(c=>`<option value="${esc(c.id)}" ${c.id===sel?'selected':''}>${esc(c.emoji)} ${esc(c.name)}</option>`).join('')+(sel&&!state.categories.some(c=>c.id===sel)?'':'')+`<option value="">📌 Без категорії</option><option value="__new">＋ Нова категорія…</option>`;
@@ -960,7 +1059,7 @@ function openGoalForm(id, after){
       <label class="field"><span>Деталі задачі</span><textarea class="input" name="desc" maxlength="2000" placeholder="Що саме треба зробити, як зрозуміти, що задачу виконано…">${esc(g?g.desc:'')}</textarea></label>
       <label class="field"><span>Категорія</span><select class="input" name="cat">${catOptions(catId)}</select></label>
       <div class="two">
-        <div class="field"><span>Дедлайн</span><input type="hidden" name="deadline" value="${esc(g?g.deadline:'')}"><button type="button" class="input date-btn ${g&&g.deadline?'':'empty'}" data-a="pick-date">📅 <span data-date-label>${g&&g.deadline?esc(fmtDate(g.deadline,true)):'Обрати дату'}</span></button></div>
+        <div class="field"><span>Дедлайн</span><input type="hidden" name="deadline" value="${esc(g?g.deadline:(preset.deadline||''))}"><button type="button" class="input date-btn ${(g?g.deadline:preset.deadline)?'':'empty'}" data-a="pick-date">📅 <span data-date-label>${(g?g.deadline:preset.deadline)?esc(fmtDate(g?g.deadline:preset.deadline,true)):'Обрати дату'}</span></button></div>
         <div class="field"><span>Час (необов’язково)</span><input type="hidden" name="time" value="${esc(g?g.time:'')}"><button type="button" class="input date-btn ${g&&g.time?'':'empty'}" data-a="pick-time">🕐 <span data-time-label>${g&&g.time?esc(g.time):'Обрати час'}</span></button></div>
       </div>
       <div class="two">
@@ -1293,7 +1392,8 @@ const TOUR=[
   {ctx:'form', sel:'[data-a=voice]', t:'🎤 Голосом', x:'Розкажи про задачу своїми словами, і ШІ сам заповнить назву, категорію, дедлайн, пріоритет і кроки. Тобі лишиться тільки перевірити.'},
   {ctx:'form', sel:'[name=title]', up:'.field', also:[['[name=cat]','.field']], t:'✏️ Про що задача', x:'Назва — єдине обов’язкове поле. Додай деталі й обери категорію, якщо хочеш.'},
   {ctx:'form', sel:'[data-a=pick-date]', up:'.two', also:[['[name=priority]','.two'],['[data-subs]','.field']], t:'📅 Дедлайн, нагадування й кроки', x:'Дата обирається в календарі, а час — на циферблаті. Застосунок нагадає про дедлайн, а велику задачу можна розбити на маленькі кроки.'},
-  {view:'goals', sel:'.segmented', also:[['.chips']], t:'🗂️ Фільтри', x:'Перемикай активні, виконані й архів, а кнопками нижче показуй лише одну категорію. Власні категорії створюються в Налаштуваннях.'},
+  {view:'goals', sel:'.mode-seg', also:[['.sort-row']], t:'📋 Список або 📅 Календар', x:'Перемикай вигляд задач. У списку можна сортувати за дедлайном, категорією чи пріоритетом, а календар показує задачі по місяцях, тижнях і днях.'},
+  {view:'goals', sel:'.segmented:not(.mode-seg)', also:[['.chips']], t:'🗂️ Фільтри', x:'Перемикай активні, виконані й архів, а кнопками нижче показуй лише одну категорію. Власні категорії створюються в Налаштуваннях.'},
   {view:'goals', sel:`.goal-card[data-id="${TOUR_SAMPLE}"]`, t:'📋 Картка задачі', x:'Категорія, прогрес кроків і дедлайн. Натисни на картку, щоб відкрити задачу. (Це приклад, він зникне після туру.)'},
   {view:'goals', sel:`.goal-card[data-id="${TOUR_SAMPLE}"] .badge.resched`, pad:6, t:'🗓 Перепланувати', x:'Якщо дедлайн минув — жодних докорів. Натисни й обери нову дату.'},
   {ctx:'detail', sel:'.subs', also:[['[data-f=add-sub]']], t:'✅ Кроки', x:'Відмічай зроблені кроки квадратиком і додавай нові будь-коли.'},
@@ -1315,7 +1415,7 @@ const TOUR=[
 ];
 function startTour(first){
   if(tourActive) return; tourActive=true;
-  const prev={view:ui.view, status:ui.status, cat:ui.cat};
+  const prev={view:ui.view, status:ui.status, cat:ui.cat, gmode:uiPref('goalsMode','list')}; setUiPref('goalsMode','list');
   ui.status='active'; ui.cat='all';
   // тимчасова задача-приклад (дедлайн учора, щоб показати «Перепланувати»)
   const y=new Date(); y.setDate(y.getDate()-1);
@@ -1390,7 +1490,7 @@ function startTour(first){
     tourActive=false; root.remove(); closeAll();
     window.removeEventListener('resize',place); window.removeEventListener('keydown',onKey);
     state.goals=state.goals.filter(g=>g.id!==TOUR_SAMPLE);
-    ui.view=first?'goals':prev.view; ui.status=prev.status; ui.cat=prev.cat;
+    ui.view=first?'goals':prev.view; ui.status=prev.status; ui.cat=prev.cat; setUiPref('goalsMode', prev.gmode);
     if(!state.settings.tutorialSeen) state.settings.tutorialSeen=true;
     save(); render(); window.scrollTo(0,0);
     if(openSlides) setTimeout(()=>openTutorial(false),300);
@@ -1433,6 +1533,8 @@ function tutorialSlides(){
       li:[['📝','Щоденний підсумок відкриває екран відмітки зробленого'],['⏰','Нагадування відкриває саму задачу'],['🔢','Цифра показує, скільки непрочитаних']]},
     {e:'🏆', t:'Досягнення', l:'Вкладка, де видно, скільки всього вже зроблено.',
       li:[['📊','Графік виконаних задач по днях, тижнях і місяцях'],['🗂️','Прогрес за категоріями'],['🏅','12 нагород, які відкриваються самі'],['🌟','Стрічка всіх виконаних задач']]},
+    {e:'📅', t:'Список і календар', l:'Дивись на задачі так, як зручно.',
+      li:[['📋','«Список» — з сортуванням за дедлайном, категорією чи пріоритетом'],['📅','«Календар» — по місяцях, тижнях і днях'],['👆','Натисни на день, щоб побачити його задачі або додати нову саме на цей день'],['🗂️','Фільтр категорій працює і в календарі']]},
     {e:'🎤', t:'Голос і ШІ', l:'Не хочеш друкувати — просто розкажи.',
       li:[['➕','У вікні «Нова задача» натисни «🎤 Надиктувати задачу» — ШІ сам розбере назву, категорію, дедлайн, пріоритет і кроки'],['📝','У підсумку дня розкажи, як минув день, — ШІ відмітить зроблене'],['👀','Ти завжди бачиш результат і можеш його виправити перед збереженням'],['🌐','Для ШІ потрібен інтернет']]},
     {e:'☁️', t:'Синхронізація', l:'Користуйся застосунком на кількох пристроях одночасно.',
@@ -1698,12 +1800,19 @@ function celebrate(){
 
 /* ========== Події ========== */
 $('.tabbar').addEventListener('click',e=>{ const b=e.target.closest('.tab'); if(!b) return; ui.view=b.dataset.view; render(); window.scrollTo(0,0); });
-$('#fab').addEventListener('click',()=>openGoalForm(null));
+$('#fab').addEventListener('click',()=>{ const inDay=uiPref('goalsMode','list')==='cal'&&uiPref('calMode','month')==='day'; openGoalForm(null, null, inDay?{deadline:ymd(ui.calDate||new Date())}:{}); });
 $('#view').addEventListener('click',async e=>{
   const b=e.target.closest('[data-action]'); if(!b) return; const a=b.dataset.action, v=b.dataset.v;
   if(a==='status'){ ui.status=v; render(); }
   else if(a==='chart'){ ui.chart=v; render(); }
   else if(a==='resched') reschedule(b.dataset.id);
+  else if(a==='goals-mode'){ setUiPref('goalsMode', v); render(); window.scrollTo(0,0); }
+  else if(a==='cal-mode'){ setUiPref('calMode', v); render(); }
+  else if(a==='cal-nav'){ const d=new Date(ui.calDate||new Date()), cm=uiPref('calMode','month'), n=+v;
+    if(cm==='month'){ d.setDate(1); d.setMonth(d.getMonth()+n); } else d.setDate(d.getDate()+(cm==='week'?7:1)*n); ui.calDate=d; render(); }
+  else if(a==='cal-today'){ ui.calDate=startOfDay(new Date()); render(); }
+  else if(a==='cal-day'){ ui.calDate=parseYmd(b.dataset.d); setUiPref('calMode','day'); render(); }
+  else if(a==='cal-add') openGoalForm(null, null, {deadline:b.dataset.d});
   else if(a==='toggle-resched'){ setUiPref('reschedOpen', !uiPref('reschedOpen', false)); render(); }
   else if(a==='gender'){ state.settings.gender=v; save(); render(); toast('Збережено'); }
   else if(a==='slides') openTutorial(false);
@@ -1738,7 +1847,7 @@ function addLetter(){
 let letterTurn=false;
 function nextLetter(){ if(!state.letters.length) return null; letterTurn=!letterTurn; return letterTurn ? state.letters[Math.floor(Math.random()*state.letters.length)].text : null; }
 const letterCard=t=>`<div class="letter"><div class="lh">💌 Лист від себе</div><p>«${esc(t)}»</p></div>`;
-$('#view').addEventListener('change',e=>{ if(e.target.dataset.action==='default-reminder'){ state.settings.defaultReminder=e.target.value; save(); toast('Збережено'); } });
+$('#view').addEventListener('change',e=>{ if(e.target.dataset.action==='sort'){ setUiPref('sort', e.target.value); render(); return; } if(e.target.dataset.action==='default-reminder'){ state.settings.defaultReminder=e.target.value; save(); toast('Збережено'); } });
 $('#importFile').addEventListener('change',e=>{ const f=e.target.files[0]; if(f) importFile(f); });
 $('#picFile').addEventListener('change',e=>{ const fs=[...e.target.files]; if(fs.length) addImageFiles(fs); });
 window.addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); deferredInstall=e; render(); });
