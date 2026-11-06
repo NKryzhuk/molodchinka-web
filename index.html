@@ -366,7 +366,7 @@ const STORE_KEY = 'achievement-tracker-v1';
 const NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
 const CP = NATIVE ? window.Capacitor.Plugins : {};
 let nativePerm='default';
-const APP_VERSION = '2.3.2';
+const APP_VERSION = '2.3.4';
 const COLORS = ['#4f46e5','#d9488a','#22915f','#c97a12','#0e8fd1','#8b3fd9','#dc3e44','#5b6475','#0f9b9b','#a0522d'];
 const EMOJIS = ['🌱','💼','💪','📚','🧘','❤️','💰','🏠','✈️','🎨','🎵','🍎','🏃','🧠','💻','📈','🎓','👨‍👩‍👧','🐾','🌍','⚽','🛠️','✍️','⭐'];
 const DEFAULT_CATS = [
@@ -1944,20 +1944,20 @@ function voiceCapture({title, hint, placeholder}){
       {onClose:()=>{ stop(); res(result); }});
     const ta=$('#vtext',m.sheet), st=$('#vstat',m.sheet), mic=$('[data-a=mic]',m.sheet);
     const setL=on=>{ listening=on; if(mic) mic.classList.toggle('on',on); if(st) st.innerHTML=on?'<b style="color:var(--danger)">🔴 Слухаю…</b> натисни, щоб зупинити':(ta.value.trim()?'Натисни на мікрофон, щоб додати ще':'Натисни на мікрофон і говори'); };
-    let gotStarted=false;   // чи прийшов сигнал «почато» саме для поточного запису
+    let gotStarted=false, hadSession=false;   // чи прийшов сигнал «почато» саме для поточного запису
     const show=t=>{ ta.value=(base?base+' ':'')+t; };
     const cleanup=async()=>{ for(const h of handles.splice(0)){ try{ await h.remove(); }catch(e){} } };
     let starting=false;
     async function start(){
       if(starting) return; starting=true;
-      base=ta.value.trim();
+      base=ta.value.trim(); if(st) st.textContent='⏳ Вмикаю мікрофон…';
       try{
         if(speechNative()){
           const SR=CP.SpeechRecognition;
           const p=await SR.requestPermissions(); if(p && p.speechRecognition && p.speechRecognition!=='granted'){ toast('Дозволь доступ до мікрофона в налаштуваннях'); return; }
           // Android сам зупиняє розпізнавання після паузи — перед новим записом повністю «скидаємо» його
-          try{ await SR.stop(); }catch(e){}
-          await cleanup(); await new Promise(r=>setTimeout(r,300));
+          if(handles.length || hadSession){ try{ await SR.stop(); }catch(e){} await cleanup(); await new Promise(r=>setTimeout(r,300)); }
+          hadSession=true;
           gotStarted=false;
           handles.push(await SR.addListener('partialResults', d=>{ if(d&&d.matches&&d.matches[0]){ gotStarted=true; if(!listening) setL(true); show(d.matches[0]); } }));
           handles.push(await SR.addListener('listeningState', s=>{
@@ -1983,10 +1983,11 @@ function voiceCapture({title, hint, placeholder}){
     m.sheet.addEventListener('click',e=>{
       const b=e.target.closest('[data-a]'); if(!b) return;
       if(b.dataset.a==='close') return m.close();
-      if(b.dataset.a==='mic'){ listening?stop():start(); return; }
+      if(b.dataset.a==='mic'){ if(starting) return; listening?stop():start(); return; }
       if(b.dataset.a==='go'){ const t=ta.value.trim(); if(!t){ toast('Скажи або напиши кілька слів'); return; } result=t; m.close(); }
     });
-    // мікрофон вмикається лише натисканням — без автозапуску, щоб не плутати «увімкнути» й «вимкнути»
+    // запис стартує автоматично; поки мікрофон вмикається — натискання ігноруються
+    if(canSpeak){ starting=true; setTimeout(()=>{ starting=false; start(); }, 350); }
   });
 }
 
