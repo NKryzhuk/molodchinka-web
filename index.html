@@ -243,7 +243,7 @@ textarea.input{resize:vertical;min-height:80px}
 .bell{position:relative;width:44px;height:44px;border-radius:14px;background:var(--surface);border:1px solid var(--border);display:grid;place-items:center;color:var(--text);flex:none;margin-top:2px}
 .bell[hidden]{display:none}
 .bell svg{width:22px;height:22px}
-.bell #bellCount{position:absolute;top:-5px;right:-5px;min-width:20px;height:20px;padding:0 5px;border-radius:10px;background:var(--primary);color:var(--on-primary);font-size:11px;font-weight:800;display:grid;place-items:center;border:2px solid var(--bg)}
+.bell #bellCount{position:absolute;top:-5px;right:-5px;min-width:20px;white-space:nowrap;height:20px;padding:0 5px;border-radius:10px;background:var(--primary);color:var(--on-primary);font-size:11px;font-weight:800;display:grid;place-items:center;border:2px solid var(--bg)}
 .bell #bellCount[hidden]{display:none}
 .switch{width:50px;height:30px;border-radius:15px;background:var(--border);position:relative;flex:none;transition:background .2s}
 .switch i{position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:left .2s}
@@ -288,6 +288,27 @@ textarea.input{resize:vertical;min-height:80px}
 @keyframes wiggle{from{transform:rotate(-4deg)}to{transform:rotate(4deg)}}
 .burst{position:fixed;inset:0;pointer-events:none;z-index:130;overflow:hidden}
 .burst span{position:absolute;left:50%;top:45%;font-size:34px;will-change:transform,opacity}
+
+/* блок «перепланувати» */
+.resched-box{background:var(--primary-soft);border-radius:var(--radius-sm);margin-bottom:12px;overflow:hidden}
+.resched-head{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:12px 14px;color:var(--primary);font-weight:700;font-size:15px;text-align:left}
+.rt{padding:0 10px 10px}
+.rt-row{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr) auto 40px;gap:8px;align-items:center;background:var(--surface);padding:9px 8px 9px 12px;border-radius:12px;margin-top:6px;font-size:14px}
+.rt-h{background:transparent;padding:2px 8px 0 12px;margin-top:0;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
+.rt-title{text-align:left;font-weight:600;word-break:break-word;color:var(--text)}
+.rt-cat{color:var(--muted);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rt-dl{font-size:13px;color:var(--muted);white-space:nowrap}
+.rt-btn{width:38px;height:38px;border-radius:10px;background:var(--primary-soft);font-size:18px;display:grid;place-items:center}
+
+/* власні випадаючі списки */
+select.enhanced{display:none!important}
+.select-btn{display:flex;align-items:center;justify-content:space-between;gap:8px;text-align:left;cursor:pointer}
+.select-btn .sv{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.select-btn svg{flex:none;width:18px;height:18px;color:var(--muted)}
+.opt-list{display:flex;flex-direction:column;gap:6px;margin-top:4px}
+.opt{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:13px 14px;border-radius:12px;background:var(--surface-2);font-size:16px;text-align:left;border:2px solid transparent}
+.opt.on{background:var(--primary-soft);border-color:var(--primary);font-weight:700;color:var(--primary)}
+.opt .ck{width:22px;height:22px;flex:none}
 
 /* голос + ШІ */
 .voice-btn{background:linear-gradient(135deg,var(--primary-soft),var(--surface-2));color:var(--primary);font-weight:700;margin-bottom:14px;border:1px dashed color-mix(in srgb,var(--primary) 40%,transparent)}
@@ -366,7 +387,7 @@ const STORE_KEY = 'achievement-tracker-v1';
 const NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
 const CP = NATIVE ? window.Capacitor.Plugins : {};
 let nativePerm='default';
-const APP_VERSION = '2.3.4';
+const APP_VERSION = '2.4.0';
 const COLORS = ['#4f46e5','#d9488a','#22915f','#c97a12','#0e8fd1','#8b3fd9','#dc3e44','#5b6475','#0f9b9b','#a0522d'];
 const EMOJIS = ['🌱','💼','💪','📚','🧘','❤️','💰','🏠','✈️','🎨','🎵','🍎','🏃','🧠','💻','📈','🎓','👨‍👩‍👧','🐾','🌍','⚽','🛠️','✍️','⭐'];
 const DEFAULT_CATS = [
@@ -526,7 +547,7 @@ async function addFeed(items){
   try{ if(sync.user) schedulePush(); }catch(e){}
 }
 async function saveFeed(){ await idbSet('feed',feed); updateBell(); try{ if(sync.user) schedulePush(); }catch(e){} }
-function updateBell(){ const n=feed.filter(f=>!f.read).length; const b=$('#bellCount'); if(b){ b.textContent=n>9?'9+':n; b.hidden=!n; } }
+function updateBell(){ const n=feed.filter(f=>!f.read).length; const b=$('#bellCount'); if(b){ b.textContent=n; b.hidden=!n; } }
 async function enableNotifications(){
   if(NATIVE){
     try{ const r=await CP.LocalNotifications.requestPermissions(); nativePerm = r.display==='granted'?'granted':(r.display==='denied'?'denied':'default'); }catch(e){}
@@ -641,13 +662,27 @@ function askGender(){
 }
 
 /* Перепланувати задачу */
+/* Невеликі налаштування інтерфейсу (лише на цьому пристрої) */
+function uiPref(k, def){ try{ const o=JSON.parse(localStorage.getItem('molodchinka-ui')||'{}'); return k in o?o[k]:def; }catch(e){ return def; } }
+function setUiPref(k, v){ try{ const o=JSON.parse(localStorage.getItem('molodchinka-ui')||'{}'); o[k]=v; localStorage.setItem('molodchinka-ui', JSON.stringify(o)); }catch(e){} }
+/* Перепланувати: вікно з двома полями — дата й час */
 function reschedule(id, after){
   const g=goalById(id); if(!g) return;
-  openDatePicker('', v=>{
-    if(!v) return;
-    g.deadline=v; touch(g); save(); render(); after&&after();
-    toast('Перенесено на '+fmtDate(v)+' 🗓');
-  }, 'Нова дата');
+  let d=g.deadline||'', t=g.time||'';
+  const m=openModal(()=>`<div class="sheet-head"><h2>🗓 Перепланувати</h2><button class="icon-btn" data-a="close" aria-label="Закрити">${ICONS.close}</button></div>
+    <div style="font-weight:600;margin:0 0 14px;word-break:break-word">${esc(g.title)}</div>
+    <div class="two">
+      <div class="field"><span>Дата</span><button type="button" class="input date-btn ${d?'':'empty'}" data-a="d">📅 <span>${d?esc(fmtDate(d,true)):'Обрати дату'}</span></button></div>
+      <div class="field"><span>Час (необов’язково)</span><button type="button" class="input date-btn ${t?'':'empty'}" data-a="t">🕐 <span>${t?esc(t):'Без часу'}</span></button></div>
+    </div>
+    <div class="btn-row" style="margin-top:6px"><button class="btn primary" data-a="save" ${d?'':'disabled'}>Зберегти</button><button class="btn" data-a="close">Скасувати</button></div>`, {dialog:true});
+  m.sheet.addEventListener('click',e=>{
+    const b=e.target.closest('[data-a]'); if(!b) return; const a=b.dataset.a;
+    if(a==='close') return m.close();
+    if(a==='d') openDatePicker(d, v=>{ if(v){ d=v; m.render(); } }, 'Нова дата');
+    if(a==='t') openTimePicker(t, v=>{ t=v; m.render(); });
+    if(a==='save'){ g.deadline=d; g.time=t; touch(g); save(); m.close(); render(); after&&after(); toast('Перенесено на '+fmtDate(d)+(t?' о '+t:'')+' 🗓'); }
+  });
 }
 let deferredInstall=null;
 
@@ -684,7 +719,13 @@ function renderGoals(){
   const active=state.goals.filter(g=>g.status==='active');
   const overdue=active.filter(g=>{const i=deadlineInfo(g);return i&&i.overdue});
   const today=active.filter(g=>g.deadline&&!deadlineInfo(g).overdue&&dayDiff(new Date(),parseYmd(g.deadline))===0);
-  if(overdue.length) h+=`<div class="notice info"><div class="grow"><b>🗓 Є задачі, які варто перепланувати</b>${overdue.slice(0,4).map(g=>`<button class="act" style="font-weight:600;margin-right:10px" data-action="resched" data-id="${esc(g.id)}">${esc(g.title)}</button>`).join('')}${overdue.length>4?'…':''}</div></div>`;
+  if(overdue.length){
+    const open=uiPref('reschedOpen', false);
+    const dl=g=>fmtShort(parseYmd(g.deadline))+(g.time?' '+g.time:'');
+    h+=`<div class="resched-box"><button class="resched-head" data-action="toggle-resched" aria-expanded="${open}"><span>🗓 Є задачі, які варто перепланувати</span><span class="chev ${open?'open':''}"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span></button>
+      ${open?`<div class="rt"><div class="rt-row rt-h"><span>Задача</span><span>Категорія</span><span>Дедлайн</span><span></span></div>
+        ${overdue.map(g=>{ const c=cat(g.categoryId); return `<div class="rt-row"><button class="rt-title" data-action="open" data-id="${esc(g.id)}">${esc(g.title)}</button><span class="rt-cat">${esc(c.emoji)} ${esc(c.name)}</span><span class="rt-dl">${dl(g)}</span><button class="rt-btn" data-action="resched" data-id="${esc(g.id)}" aria-label="Перепланувати">🗓</button></div>`; }).join('')}</div>`:''}</div>`;
+  }
   if(today.length) h+=`<div class="notice warn"><div class="grow"><b>Дедлайн сьогодні: ${today.length}</b>${today.slice(0,3).map(g=>esc(g.title)).join(', ')}</div></div>`;
   const ns=notifState();
   if(ns==='default' && active.some(g=>g.deadline&&g.reminder!=='none'))
@@ -1624,6 +1665,7 @@ $('#view').addEventListener('click',async e=>{
   if(a==='status'){ ui.status=v; render(); }
   else if(a==='chart'){ ui.chart=v; render(); }
   else if(a==='resched') reschedule(b.dataset.id);
+  else if(a==='toggle-resched'){ setUiPref('reschedOpen', !uiPref('reschedOpen', false)); render(); }
   else if(a==='gender'){ state.settings.gender=v; save(); render(); toast('Збережено'); }
   else if(a==='slides') openTutorial(false);
   else if(a==='auth') openAuth(v);
@@ -2049,6 +2091,39 @@ async function voiceReview(ctx){
   if(n) toast('✨ '+(r.summary||'Відмічено')+' — перевір і натисни «Підтвердити»');
   else dialog({title:'Нічого не знайшлося 🤔', text:'ШІ не зміг зіставити розповідь із задачами. Спробуй розповісти трохи детальніше або відміть вручну.', buttons:[{label:'Добре',value:1,kind:'primary'}]});
 }
+
+/* ========== Власні випадаючі списки (замість системних) ========== */
+const selValDesc=Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value');
+const CHEV_DOWN='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>';
+function enhanceSelect(sel){
+  if(sel.dataset.enh) return; sel.dataset.enh='1'; sel.classList.add('enhanced');
+  const btn=document.createElement('button'); btn.type='button';
+  btn.className=sel.className.replace(/\benhanced\b/,'').trim()+' select-btn';
+  if(sel.getAttribute('style')) btn.setAttribute('style', sel.getAttribute('style'));
+  if(sel.getAttribute('aria-label')) btn.setAttribute('aria-label', sel.getAttribute('aria-label'));
+  btn.innerHTML=`<span class="sv"></span>${CHEV_DOWN}`;
+  const upd=()=>{ const o=sel.options[sel.selectedIndex]; btn.querySelector('.sv').textContent=o?o.textContent:''; };
+  sel.after(btn); upd();
+  // будь-яка програмна зміна значення одразу оновлює підпис кнопки
+  Object.defineProperty(sel,'value',{configurable:true, get(){ return selValDesc.get.call(this); }, set(v){ selValDesc.set.call(this,v); upd(); }});
+  sel.addEventListener('change', upd);
+  btn.addEventListener('click', e=>{ e.preventDefault(); e.stopPropagation(); openSelectSheet(sel); });
+}
+function openSelectSheet(sel){
+  const lab=sel.closest('label.field, .field'); const sp=lab && lab.querySelector(':scope > span');
+  const title=((sp && sp.textContent) || sel.getAttribute('aria-label') || 'Обери варіант').replace('*','').trim();
+  const opts=[...sel.options];
+  const m=openModal(()=>`<div class="sheet-head"><h2>${esc(title)}</h2><button class="icon-btn" data-a="close" aria-label="Закрити">${ICONS.close}</button></div>
+    <div class="opt-list">${opts.map((o,i)=>`<button class="opt ${o.selected?'on':''}" data-i="${i}"><span>${esc(o.textContent)}</span>${o.selected?ICONS.check.replace('<svg','<svg class="ck"'):''}</button>`).join('')}</div>`, {dialog:true});
+  m.sheet.addEventListener('click',e=>{
+    if(e.target.closest('[data-a=close]')) return m.close();
+    const o=e.target.closest('[data-i]'); if(!o) return;
+    const v=opts[+o.dataset.i].value; m.close();
+    if(sel.value!==v || v==='__new'){ sel.value=v; sel.dispatchEvent(new Event('change',{bubbles:true})); }
+  });
+}
+function enhanceAllSelects(root=document){ root.querySelectorAll('select.input:not([data-enh])').forEach(enhanceSelect); }
+new MutationObserver(()=>enhanceAllSelects()).observe(document.body,{childList:true, subtree:true});
 
 /* ========== Старт ========== */
 nativeInit();
