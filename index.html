@@ -366,7 +366,7 @@ const STORE_KEY = 'achievement-tracker-v1';
 const NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
 const CP = NATIVE ? window.Capacitor.Plugins : {};
 let nativePerm='default';
-const APP_VERSION = '2.2.2';
+const APP_VERSION = '2.3.1';
 const COLORS = ['#4f46e5','#d9488a','#22915f','#c97a12','#0e8fd1','#8b3fd9','#dc3e44','#5b6475','#0f9b9b','#a0522d'];
 const EMOJIS = ['🌱','💼','💪','📚','🧘','❤️','💰','🏠','✈️','🎨','🎵','🍎','🏃','🧠','💻','📈','🎓','👨‍👩‍👧','🐾','🌍','⚽','🛠️','✍️','⭐'];
 const DEFAULT_CATS = [
@@ -1877,6 +1877,8 @@ function syncCardHTML(){
 /* ========== 🎤 Голос + ✨ ШІ (Firebase AI Logic / Gemini) ========== */
 const AI_MODELS=['gemini-2.5-flash','gemini-2.5-flash-lite','gemini-3-flash-preview','gemini-flash-latest'];
 let aiLastErr='';
+// Адреса «посередника» на Cloudflare: запити до ШІ йдуть через нього й лише для тих, хто увійшов в акаунт
+const AI_PROXY_URL='';
 const AI_OK = !!(window.FB && FB.getAI) && typeof DEMO_SEED!=='function';
 const SpeechWeb = window.SpeechRecognition || window.webkitSpeechRecognition;
 const speechNative = ()=> NATIVE && !!(CP && CP.SpeechRecognition);
@@ -1888,7 +1890,19 @@ function aiModel(i){
     aiCache[i]=FB.getGenerativeModel(ai,{model:AI_MODELS[i], generationConfig:{responseMimeType:'application/json', temperature:0.2}}); }
   return aiCache[i];
 }
+const pickJSON=t=>{ const a=t.indexOf('{'), b=t.lastIndexOf('}'); if(a<0||b<a) throw new Error('bad-json: '+String(t).slice(0,120)); return JSON.parse(t.slice(a,b+1)); };
 async function aiJSON(prompt){
+  if(AI_PROXY_URL){
+    if(!sync.user){ const e=new Error('need-login'); e.code='need-login'; aiLastErr='need-login'; throw e; }
+    let r, d={};
+    try{
+      const tok=await sync.user.getIdToken();
+      r=await fetch(AI_PROXY_URL,{method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok}, body:JSON.stringify({prompt})});
+      d=await r.json().catch(()=>({}));
+    }catch(e){ aiLastErr='[proxy] '+String(e&&e.message||e); throw new Error('network '+aiLastErr); }
+    if(!r.ok){ aiLastErr=`[proxy ${r.status}] ${d.error||''} ${d.status||''} ${d.message||''}`.slice(0,300); throw new Error((r.status===429?'429 quota ':'')+aiLastErr); }
+    return pickJSON(d.text||'');
+  }
   let last;
   for(let i=0;i<AI_MODELS.length;i++){
     try{
@@ -1904,6 +1918,7 @@ async function aiJSON(prompt){
 function aiErr(e){
   const m=String(e&&e.message||e);
   if(!navigator.onLine || /network|failed to fetch/i.test(m)) return 'Немає інтернету — без нього ШІ не працює.';
+  if(/need-login/.test(m)) return 'ШІ доступний після входу в акаунт.';
   if(/no-app/.test(m)) return 'ШІ ще не запустився. Закрий і знову відкрий застосунок.';
   if(/api-not-enabled|has not been used|PERMISSION_DENIED|SERVICE_DISABLED|403/i.test(m)) return 'ШІ ще не ввімкнено у Firebase. Відкрий AI services → AI Logic → Gemini Developer API.';
   if(/quota|429|RESOURCE_EXHAUSTED/i.test(m)) return 'Вичерпано безкоштовний ліміт ШІ. Спробуй трохи пізніше.';
@@ -1914,7 +1929,7 @@ async function withLoading(p, label='✨ ШІ розбирає твої слов
   const m=openModal(()=>`<div class="ai-load"><div class="spinner"></div><div>${label}</div></div>`,{dialog:true});
   try{ return await p; } finally{ m.close(); }
 }
-const aiFail=e=>dialog({title:'Не вийшло 😔', text:esc(aiErr(e))+`<br><br><span style="font-size:11px;opacity:.7;word-break:break-all">Технічні деталі: ${esc(aiLastErr||String(e&&e.message||e))}</span>`, buttons:[{label:'Зрозуміло',value:1,kind:'primary'}]});
+const aiFail=e=> /need-login/.test(String(e&&e.message)) ? dialog({title:'Увійди в акаунт 🔐', text:'Щоб ШІ розбирав твої слова, увійди в акаунт або створи його — це хвилина. Так ШІ захищений від чужих людей.', buttons:[{label:'☁️ Увійти',value:'login',kind:'primary'},{label:'Створити акаунт',value:'register'},{label:'Пізніше',value:null}]}).then(v=>{ if(v) openAuth(v); }) : dialog({title:'Не вийшло 😔', text:esc(aiErr(e))+`<br><br><span style="font-size:11px;opacity:.7;word-break:break-all">Технічні деталі: ${esc(aiLastErr||String(e&&e.message||e))}</span>`, buttons:[{label:'Зрозуміло',value:1,kind:'primary'}]});
 
 /* Вікно запису голосу. Повертає текст (його можна виправити руками) або null */
 function voiceCapture({title, hint, placeholder}){
@@ -1930,27 +1945,35 @@ function voiceCapture({title, hint, placeholder}){
     const ta=$('#vtext',m.sheet), st=$('#vstat',m.sheet), mic=$('[data-a=mic]',m.sheet);
     const setL=on=>{ listening=on; if(mic) mic.classList.toggle('on',on); if(st) st.textContent=on?'Слухаю… говори 🙂 (натисни ще раз, щоб зупинити)':'Натисни на мікрофон і говори'; };
     const show=t=>{ ta.value=(base?base+' ':'')+t; };
+    const cleanup=async()=>{ for(const h of handles.splice(0)){ try{ await h.remove(); }catch(e){} } };
+    let starting=false;
     async function start(){
+      if(starting) return; starting=true;
       base=ta.value.trim();
       try{
         if(speechNative()){
           const SR=CP.SpeechRecognition;
           const p=await SR.requestPermissions(); if(p && p.speechRecognition && p.speechRecognition!=='granted'){ toast('Дозволь доступ до мікрофона в налаштуваннях'); return; }
-          handles.push(await SR.addListener('partialResults', d=>{ if(d&&d.matches&&d.matches[0]) show(d.matches[0]); }));
-          handles.push(await SR.addListener('listeningState', s=>{ if(s&&s.status==='stopped') setL(false); }));
+          // Android сам зупиняє розпізнавання після паузи — перед новим записом повністю «скидаємо» його
+          try{ await SR.stop(); }catch(e){}
+          await cleanup(); await new Promise(r=>setTimeout(r,300));
+          handles.push(await SR.addListener('partialResults', d=>{ if(listening && d&&d.matches&&d.matches[0]) show(d.matches[0]); }));
+          handles.push(await SR.addListener('listeningState', s=>{ if(s&&s.status==='stopped'){ setL(false); base=ta.value.trim(); } }));
           setL(true);
-          await SR.start({language:'uk-UA', maxResults:1, partialResults:true, popup:false});
+          SR.start({language:'uk-UA', maxResults:1, partialResults:true, popup:false}).catch(()=>{ setL(false); });
         } else {
+          try{ if(rec) rec.abort(); }catch(e){}
           rec=new SpeechWeb(); rec.lang='uk-UA'; rec.interimResults=true; rec.continuous=true;
           rec.onresult=ev=>{ let t=''; for(const r of ev.results) t+=r[0].transcript; show(t.trim()); };
-          rec.onend=()=>setL(false); rec.onerror=ev=>{ setL(false); if(ev.error==='not-allowed') toast('Дозволь доступ до мікрофона'); };
+          rec.onend=()=>{ setL(false); base=ta.value.trim(); }; rec.onerror=ev=>{ setL(false); if(ev.error==='not-allowed') toast('Дозволь доступ до мікрофона'); };
           rec.start(); setL(true);
         }
       }catch(e){ setL(false); toast('Не вдалося ввімкнути мікрофон'); }
+      finally{ starting=false; }
     }
     function stop(){
       try{ if(speechNative()) CP.SpeechRecognition.stop(); else if(rec) rec.stop(); }catch(e){}
-      handles.splice(0).forEach(h=>{ try{ h.remove(); }catch(e){} }); setL(false);
+      cleanup(); setL(false); base=ta.value.trim();
     }
     m.sheet.addEventListener('click',e=>{
       const b=e.target.closest('[data-a]'); if(!b) return;
