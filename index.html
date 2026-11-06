@@ -366,7 +366,7 @@ const STORE_KEY = 'achievement-tracker-v1';
 const NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
 const CP = NATIVE ? window.Capacitor.Plugins : {};
 let nativePerm='default';
-const APP_VERSION = '2.3.1';
+const APP_VERSION = '2.3.2';
 const COLORS = ['#4f46e5','#d9488a','#22915f','#c97a12','#0e8fd1','#8b3fd9','#dc3e44','#5b6475','#0f9b9b','#a0522d'];
 const EMOJIS = ['🌱','💼','💪','📚','🧘','❤️','💰','🏠','✈️','🎨','🎵','🍎','🏃','🧠','💻','📈','🎓','👨‍👩‍👧','🐾','🌍','⚽','🛠️','✍️','⭐'];
 const DEFAULT_CATS = [
@@ -1943,7 +1943,8 @@ function voiceCapture({title, hint, placeholder}){
       <div class="btn-row" style="margin-top:12px"><button class="btn primary" data-a="go">✨ Розібрати</button><button class="btn" data-a="close">Скасувати</button></div>`,
       {onClose:()=>{ stop(); res(result); }});
     const ta=$('#vtext',m.sheet), st=$('#vstat',m.sheet), mic=$('[data-a=mic]',m.sheet);
-    const setL=on=>{ listening=on; if(mic) mic.classList.toggle('on',on); if(st) st.textContent=on?'Слухаю… говори 🙂 (натисни ще раз, щоб зупинити)':'Натисни на мікрофон і говори'; };
+    const setL=on=>{ listening=on; if(mic) mic.classList.toggle('on',on); if(st) st.innerHTML=on?'<b style="color:var(--danger)">🔴 Слухаю…</b> натисни, щоб зупинити':(ta.value.trim()?'Натисни на мікрофон, щоб додати ще':'Натисни на мікрофон і говори'); };
+    let gotStarted=false;   // чи прийшов сигнал «почато» саме для поточного запису
     const show=t=>{ ta.value=(base?base+' ':'')+t; };
     const cleanup=async()=>{ for(const h of handles.splice(0)){ try{ await h.remove(); }catch(e){} } };
     let starting=false;
@@ -1957,8 +1958,12 @@ function voiceCapture({title, hint, placeholder}){
           // Android сам зупиняє розпізнавання після паузи — перед новим записом повністю «скидаємо» його
           try{ await SR.stop(); }catch(e){}
           await cleanup(); await new Promise(r=>setTimeout(r,300));
-          handles.push(await SR.addListener('partialResults', d=>{ if(listening && d&&d.matches&&d.matches[0]) show(d.matches[0]); }));
-          handles.push(await SR.addListener('listeningState', s=>{ if(s&&s.status==='stopped'){ setL(false); base=ta.value.trim(); } }));
+          gotStarted=false;
+          handles.push(await SR.addListener('partialResults', d=>{ if(d&&d.matches&&d.matches[0]){ gotStarted=true; if(!listening) setL(true); show(d.matches[0]); } }));
+          handles.push(await SR.addListener('listeningState', s=>{
+            if(s&&s.status==='started') gotStarted=true;
+            else if(s&&s.status==='stopped' && gotStarted){ setL(false); base=ta.value.trim(); }   // «зупинено» від попереднього запису ігноруємо
+          }));
           setL(true);
           SR.start({language:'uk-UA', maxResults:1, partialResults:true, popup:false}).catch(()=>{ setL(false); });
         } else {
@@ -1981,7 +1986,7 @@ function voiceCapture({title, hint, placeholder}){
       if(b.dataset.a==='mic'){ listening?stop():start(); return; }
       if(b.dataset.a==='go'){ const t=ta.value.trim(); if(!t){ toast('Скажи або напиши кілька слів'); return; } result=t; m.close(); }
     });
-    if(canSpeak) setTimeout(start, 350);
+    // мікрофон вмикається лише натисканням — без автозапуску, щоб не плутати «увімкнути» й «вимкнути»
   });
 }
 
