@@ -380,6 +380,7 @@ select.enhanced{display:none!important}
 .voice-btn{background:linear-gradient(135deg,var(--primary-soft),var(--surface-2));color:var(--primary);font-weight:700;margin-bottom:14px;border:1px dashed color-mix(in srgb,var(--primary) 40%,transparent)}
 .voice-wrap{display:flex;flex-direction:column;align-items:center;gap:10px;margin:14px 0 16px;text-align:center}
 .mic{width:88px;height:88px;border-radius:50%;background:var(--primary);color:#fff;font-size:38px;display:grid;place-items:center;box-shadow:0 6px 20px color-mix(in srgb,var(--primary) 35%,transparent)}
+.mic.wait{opacity:.6;animation:none}
 .mic.on{animation:micpulse 1.2s ease-out infinite}
 @keyframes micpulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--primary) 55%,transparent)}100%{box-shadow:0 0 0 26px transparent}}
 .ai-load{display:flex;flex-direction:column;align-items:center;gap:16px;padding:28px 0;font-weight:700;text-align:center}
@@ -453,7 +454,7 @@ const STORE_KEY = 'achievement-tracker-v1';
 const NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
 const CP = NATIVE ? window.Capacitor.Plugins : {};
 let nativePerm='default';
-const APP_VERSION = '2.7.1';
+const APP_VERSION = '2.7.2';
 const COLORS = ['#4f46e5','#d9488a','#22915f','#c97a12','#0e8fd1','#8b3fd9','#dc3e44','#5b6475','#0f9b9b','#a0522d'];
 const EMOJIS = ['🌱','💼','💪','📚','🧘','❤️','💰','🏠','✈️','🎨','🎵','🍎','🏃','🧠','💻','📈','🎓','👨‍👩‍👧','🐾','🌍','⚽','🛠️','✍️','⭐'];
 const DEFAULT_CATS = [
@@ -2146,63 +2147,98 @@ async function withLoading(p, label='✨ ШІ розбирає твої слов
 }
 const aiFail=e=> /need-login/.test(String(e&&e.message)) ? dialog({title:'Увійди в акаунт 🔐', text:'Щоб ШІ розбирав твої слова, увійди в акаунт або створи його — це хвилина. Так ШІ захищений від чужих людей.', buttons:[{label:'☁️ Увійти',value:'login',kind:'primary'},{label:'Створити акаунт',value:'register'},{label:'Пізніше',value:null}]}).then(v=>{ if(v) openAuth(v); }) : dialog({title:'Не вийшло 😔', text:esc(aiErr(e))+`<br><br><span style="font-size:11px;opacity:.7;word-break:break-all">Технічні деталі: ${esc(aiLastErr||String(e&&e.message||e))}</span>`, buttons:[{label:'Зрозуміло',value:1,kind:'primary'}]});
 
-/* Вікно запису голосу. Повертає текст (його можна виправити руками) або null */
+/* Вікно запису голосу. Повертає текст (його можна виправити руками) або null.
+   Стан: idle → starting (⏳) → listening (🔴). «Слухаю» показуємо лише тоді, коли розпізнавач справді почав.
+   Android сам зупиняє запис після паузи — якщо користувач не натискав «стоп», тихо перезапускаємо (до 3 хв). */
+let voicePermOK=false;
 function voiceCapture({title, hint, placeholder}){
   return new Promise(res=>{
-    let result=null, listening=false, rec=null, handles=[], base='';
-    const canSpeak=speechOK();
+    let lastT='', skip=0, result=null, rec=null, handles=[], base='', state='idle', userStop=true, gotText=false, t0=0, startTimer=null, watchdog=null, closed=false;
+    const canSpeak=speechOK(), SR=speechNative()?CP.SpeechRecognition:null;
     const m=openModal(()=>`<div class="sheet-head"><h2>${title}</h2><button class="icon-btn" data-a="close" aria-label="Закрити">${ICONS.close}</button></div>
       <p class="small" style="margin:0 0 6px">${hint}</p>
       ${canSpeak?`<div class="voice-wrap"><button class="mic" data-a="mic" aria-label="Мікрофон">🎤</button><div class="small" id="vstat">Натисни на мікрофон і говори</div></div>`:'<div class="small" style="margin:8px 0">Голосове введення недоступне на цьому пристрої — напиши своїми словами.</div>'}
       <textarea class="input" id="vtext" rows="4" placeholder="${esc(placeholder)}"></textarea>
       <div class="btn-row" style="margin-top:12px"><button class="btn primary" data-a="go">✨ Розібрати</button><button class="btn" data-a="close">Скасувати</button></div>`,
-      {onClose:()=>{ stop(); res(result); }});
+      {onClose:()=>{ closed=true; stop(); cleanup(); res(result); }});
     const ta=$('#vtext',m.sheet), st=$('#vstat',m.sheet), mic=$('[data-a=mic]',m.sheet);
-    const setL=on=>{ listening=on; if(mic) mic.classList.toggle('on',on); if(st) st.innerHTML=on?'<b style="color:var(--danger)">🔴 Слухаю…</b> натисни, щоб зупинити':(ta.value.trim()?'Натисни на мікрофон, щоб додати ще':'Натисни на мікрофон і говори'); };
-    let gotStarted=false, hadSession=false;   // чи прийшов сигнал «почато» саме для поточного запису
-    const show=t=>{ ta.value=(base?base+' ':'')+t; };
-    const cleanup=async()=>{ for(const h of handles.splice(0)){ try{ await h.remove(); }catch(e){} } };
-    let starting=false;
-    async function start(){
-      if(starting) return; starting=true;
-      base=ta.value.trim(); if(st) st.textContent='⏳ Вмикаю мікрофон…';
+    const status=h=>{ if(st) st.innerHTML=h; };
+    function setState(s, msg){
+      state=s; if(mic){ mic.classList.toggle('on', s==='listening'); mic.classList.toggle('wait', s==='starting'); }
+      if(msg) return status(msg);
+      if(s==='listening') status('<b style="color:var(--danger)">🔴 Слухаю…</b> натисни, щоб зупинити');
+      else if(s==='starting') status('⏳ Вмикаю мікрофон…');
+      else status(ta.value.trim()?'Натисни на мікрофон, щоб додати ще':'Натисни на мікрофон і говори');
+    }
+    const show=t=>{ gotText=true; lastT=t; const tail=t.slice(skip).trim(); ta.value=(base?base+' ':'')+tail; ta.scrollTop=ta.scrollHeight; };
+    const clearTimers=()=>{ clearTimeout(startTimer); clearInterval(watchdog); startTimer=null; watchdog=null; };
+    async function cleanup(){ clearTimers(); for(const h of handles.splice(0)){ try{ await h.remove(); }catch(e){} } }
+    const isOn=async()=>{ try{ const r=await SR.isListening(); return !!(r&&r.listening); }catch(e){ return null; } };
+    function heard(){ if(state==='starting'){ clearTimeout(startTimer); setState('listening'); } }
+    function ended(){                       // розпізнавач зупинився сам
+      if(closed || state==='idle') return;
+      base=ta.value.trim(); lastT=''; skip=0; clearTimers();
+      if(!userStop && gotText && Date.now()-t0<180000){ begin(true); return; }   // тихий перезапуск після паузи
+      setState('idle');
+    }
+    function fail(){ if(closed) return; clearTimers(); userStop=true; setState('idle','Мікрофон не відповів 😕 Натисни на нього ще раз'); }
+    async function ensureNative(){
+      if(!voicePermOK){
+        let p=null; try{ p=await SR.checkPermissions(); }catch(e){}
+        if(!p || p.speechRecognition!=='granted'){ p=await SR.requestPermissions(); }
+        if(p && p.speechRecognition && p.speechRecognition!=='granted'){ toast('Дозволь доступ до мікрофона в налаштуваннях'); return false; }
+        voicePermOK=true;
+      }
+      if(!handles.length){
+        handles.push(await SR.addListener('partialResults', d=>{ if(closed||state==='idle') return; const t=d&&d.matches&&d.matches[0]; if(t){ heard(); show(t); } }));
+        handles.push(await SR.addListener('listeningState', s=>{ if(closed) return;
+          if(s&&s.status==='started') heard();
+          else if(s&&s.status==='stopped' && state==='listening') ended(); }));   // «зупинено» від попереднього запису (коли ми ще вмикаємо) ігноруємо
+      }
+      return true;
+    }
+    async function begin(restart){
+      if(closed) return;
+      gotText=false; base=ta.value.trim(); lastT=''; skip=0;
+      if(!restart){ userStop=false; t0=Date.now(); }
+      setState(restart?'listening':'starting', restart?'<b style="color:var(--danger)">🔴 Слухаю…</b> натисни, щоб зупинити':null);
+      if(restart) state='starting';
       try{
-        if(speechNative()){
-          const SR=CP.SpeechRecognition;
-          const p=await SR.requestPermissions(); if(p && p.speechRecognition && p.speechRecognition!=='granted'){ toast('Дозволь доступ до мікрофона в налаштуваннях'); return; }
-          // Android сам зупиняє розпізнавання після паузи — перед новим записом повністю «скидаємо» його
-          if(handles.length || hadSession){ try{ await SR.stop(); }catch(e){} await cleanup(); await new Promise(r=>setTimeout(r,300)); }
-          hadSession=true;
-          gotStarted=false;
-          handles.push(await SR.addListener('partialResults', d=>{ if(d&&d.matches&&d.matches[0]){ gotStarted=true; if(!listening) setL(true); show(d.matches[0]); } }));
-          handles.push(await SR.addListener('listeningState', s=>{
-            if(s&&s.status==='started') gotStarted=true;
-            else if(s&&s.status==='stopped' && gotStarted){ setL(false); base=ta.value.trim(); }   // «зупинено» від попереднього запису ігноруємо
-          }));
-          setL(true);
-          SR.start({language:'uk-UA', maxResults:1, partialResults:true, popup:false}).catch(()=>{ setL(false); });
+        if(SR){
+          if(!(await ensureNative())){ setState('idle'); userStop=true; return; }
+          if(await isOn()){ try{ await SR.stop(); }catch(e){} await new Promise(r=>setTimeout(r,150)); }
+          SR.start({language:'uk-UA', maxResults:1, partialResults:true, popup:false}).catch(e=>{ if(state!=='idle') fail(); });
+          // якщо сигнал «почато» загубився — перевіряємо самі
+          startTimer=setTimeout(async()=>{ if(state!=='starting') return; const on=await isOn(); if(on===false) fail(); else heard(); }, 2500);
+          // поки слухаємо — стежимо, чи розпізнавач не зупинився без сповіщення
+          watchdog=setInterval(async()=>{ if(state!=='listening') return; if((await isOn())===false) ended(); }, 1500);
         } else {
-          try{ if(rec) rec.abort(); }catch(e){}
+          try{ if(rec){ rec.onend=null; rec.abort(); } }catch(e){}
           rec=new SpeechWeb(); rec.lang='uk-UA'; rec.interimResults=true; rec.continuous=true;
-          rec.onresult=ev=>{ let t=''; for(const r of ev.results) t+=r[0].transcript; show(t.trim()); };
-          rec.onend=()=>{ setL(false); base=ta.value.trim(); }; rec.onerror=ev=>{ setL(false); if(ev.error==='not-allowed') toast('Дозволь доступ до мікрофона'); };
-          rec.start(); setL(true);
+          rec.onstart=()=>heard();
+          rec.onaudiostart=()=>heard();
+          rec.onresult=ev=>{ let t=''; for(const r of ev.results) t+=r[0].transcript; heard(); show(t.trim()); };
+          rec.onend=()=>{ if(state==='starting') return fail(); ended(); };
+          rec.onerror=ev=>{ if(ev.error==='not-allowed'||ev.error==='service-not-allowed'){ userStop=true; toast('Дозволь доступ до мікрофона'); } };
+          rec.start();
+          startTimer=setTimeout(()=>{ if(state==='starting') fail(); }, 4000);
         }
-      }catch(e){ setL(false); toast('Не вдалося ввімкнути мікрофон'); }
-      finally{ starting=false; }
+      }catch(e){ console.log('voice', e); fail(); }
     }
     function stop(){
-      try{ if(speechNative()) CP.SpeechRecognition.stop(); else if(rec) rec.stop(); }catch(e){}
-      cleanup(); setL(false); base=ta.value.trim();
+      userStop=true; clearTimers();
+      try{ if(SR) SR.stop(); else if(rec) rec.stop(); }catch(e){}
+      if(!closed) setState('idle'); base=ta.value.trim();
     }
     m.sheet.addEventListener('click',e=>{
       const b=e.target.closest('[data-a]'); if(!b) return;
       if(b.dataset.a==='close') return m.close();
-      if(b.dataset.a==='mic'){ if(starting) return; listening?stop():start(); return; }
-      if(b.dataset.a==='go'){ const t=ta.value.trim(); if(!t){ toast('Скажи або напиши кілька слів'); return; } result=t; m.close(); }
+      if(b.dataset.a==='mic'){ if(state==='idle') begin(false); else stop(); return; }   // під час «Вмикаю…» натискання = скасувати
+      if(b.dataset.a==='go'){ const t=ta.value.trim(); if(!t){ toast('Скажи або напиши кілька слів'); return; } stop(); result=t; m.close(); }
     });
-    // запис стартує автоматично; поки мікрофон вмикається — натискання ігноруються
-    if(canSpeak){ starting=true; setTimeout(()=>{ starting=false; start(); }, 350); }
+    // ручне редагування під час запису: новий текст продовжиться після виправленого
+    ta.addEventListener('input',()=>{ if(state!=='idle'){ base=ta.value.trim(); skip=lastT.length; } });
+    if(canSpeak) setTimeout(()=>begin(false), 200);   // запис стартує автоматично
   });
 }
 
