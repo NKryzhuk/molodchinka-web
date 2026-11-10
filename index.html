@@ -454,7 +454,7 @@ const STORE_KEY = 'achievement-tracker-v1';
 const NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
 const CP = NATIVE ? window.Capacitor.Plugins : {};
 let nativePerm='default';
-const APP_VERSION = '2.7.2';
+const APP_VERSION = '2.7.3';
 const COLORS = ['#4f46e5','#d9488a','#22915f','#c97a12','#0e8fd1','#8b3fd9','#dc3e44','#5b6475','#0f9b9b','#a0522d'];
 const EMOJIS = ['🌱','💼','💪','📚','🧘','❤️','💰','🏠','✈️','🎨','🎵','🍎','🏃','🧠','💻','📈','🎓','👨‍👩‍👧','🐾','🌍','⚽','🛠️','✍️','⭐'];
 const DEFAULT_CATS = [
@@ -1268,7 +1268,7 @@ async function openReview(){
   const filled=()=>rows.filter(r=>r.text.trim());
   const changes=()=>sel.size+filled().length+[...Object.entries(pending)].reduce((a,[gid,x])=>a+x.filter(s=>!sel.has('s|'+gid+'|'+s.id)).length,0);
   const chk=(on,locked)=>`<span class="check ${on?'on':''} ${locked?'locked':''}">${ICONS.check}</span>`;
-  const catOpts=v=>state.categories.map(c=>`<option value="${esc(c.id)}" ${c.id===v?'selected':''}>${esc(c.emoji)} ${esc(c.name)}</option>`).join('')+`<option value="" ${v===''?'selected':''}>📌 Без категорії</option>`;
+  const catOpts=v=>state.categories.map(c=>`<option value="${esc(c.id)}" ${c.id===v?'selected':''}>${esc(c.emoji)} ${esc(c.name)}</option>`).join('')+`<option value="" ${v===''?'selected':''}>📌 Без категорії</option><option value="__new">＋ Нова категорія…</option>`;
   const confirmLabel=()=>changes()?`Підтвердити (${changes()})`:'Відміть виконане';
   const chev=open=>`<span class="chev ${open?'open':''}"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>`;
   const addStepForm=gid=>`<form class="add-sub rv-add" data-addstep="${esc(gid)}"><input class="input" name="t" placeholder="Додати крок…" maxlength="200" autocomplete="off"><button class="btn primary" aria-label="Додати крок">${ICONS.plus.replace('<svg','<svg width="20" height="20"')}</button></form>`;
@@ -1314,7 +1314,11 @@ async function openReview(){
   const rowOf=el=>rows.find(r=>r.id===el.closest('[data-r]').dataset.r);
   const refreshBtn=()=>{ const b=$('[data-a=confirm]',m.sheet); b.disabled=!changes(); b.textContent=confirmLabel(); };
   m.sheet.addEventListener('input',e=>{ if(e.target.dataset.nt==='text'){ rowOf(e.target).text=e.target.value; refreshBtn(); } });
-  m.sheet.addEventListener('change',e=>{ if(e.target.dataset.nt==='cat') rowOf(e.target).cat=e.target.value; });
+  m.sheet.addEventListener('change',e=>{ if(e.target.dataset.nt!=='cat') return; const r=rowOf(e.target);
+    if(e.target.value!=='__new'){ r.cat=e.target.value; return; }
+    e.target.value=r.cat;   // поки категорію не створено — лишаємо попередню
+    openCategoryEditor(null, c=>{ r.cat=c.id; m.render(); refreshBtn(); });
+  });
   m.sheet.addEventListener('keydown',e=>{ if(e.key==='Enter' && e.target.dataset.nt==='text'){ e.preventDefault(); $('[data-a=nt-add]',m.sheet).click(); } });
   m.sheet.addEventListener('submit',e=>{
     const f=e.target.closest('[data-addstep]'); if(!f) return; e.preventDefault();
@@ -1427,7 +1431,7 @@ const TOUR=[
   {ctx:'detail', sel:'.progress-big', also:[['.subs'],['[data-f=add-sub]']], t:'✅ Відкрита задача й кроки', x:'Угорі — дедлайн, пріоритет і нагадування, нижче — відсоток виконання. Відмічай зроблені кроки квадратиком і додавай нові. Коли всі кроки готові, застосунок запропонує завершити задачу.'},
   {ctx:'detail', sel:'.btn.success[data-a=complete]', up:'.btn-row', also:[['[data-a=archive]','.btn-row']], t:'🏁 Завершити, змінити, в архів', x:'«Завершити задачу» відкриває святковий екран з твоєю картинкою чи листом від себе. «Редагувати» змінює будь-що, «В архів» ховає задачу, не видаляючи її.'},
   {view:'goals', sel:'#bell', pad:6, t:'🔔 Дзвіночок', x:'Усі сповіщення: нагадування про дедлайни, «варто перепланувати» й щоденний підсумок. Цифра — точна кількість непрочитаних. З акаунтом список спільний для всіх пристроїв.'},
-  {ctx:'review', sel:'[data-a=voice]', also:[['.rv-item'],['.nt-row']], t:'📝 Підсумок дня', x:'Щовечора о 21:00 приходить нагадування. Відміть задачі й кроки, які вдалося зробити (стрілочка розгортає кроки, можна додати новий), або розкажи голосом — ШІ відмітить сам. У «Ще щось зроблено?» запиши справи, яких не було в списку.'},
+  {ctx:'review', sel:'[data-a=voice]', also:[['.rv-item'],['.nt-row']], t:'📝 Підсумок дня', x:'Щовечора о 21:00 приходить нагадування. Відміть задачі й кроки, які вдалося зробити (стрілочка розгортає кроки, можна додати новий), або розкажи голосом — ШІ відмітить сам. У «Ще щось зроблено?» запиши справи, яких не було в списку, — там же можна створити нову категорію.'},
   {ctx:'review', sel:'.rv-foot', t:'💛 Підтвердити або відпочити', x:'«Підтвердити» зберігає все відмічене, і застосунок нагадає тобі, що твої досягнення заслуговують на визнання. А якщо день був для відпочинку — натисни 🌿, бо це теж добре.'},
   {view:'stats', sel:'.stat-row', also:[['.weeks','.card']], t:'🏆 Досягнення', x:'Скільки задач і кроків зроблено, днів відпочинку, а нижче — графік виконаних задач. Перемикай «Дні», «Тижні» й «Місяці».'},
   {view:'stats', sel:'.catstat', also:[['.badges']], t:'🏅 Категорії, нагороди й стрічка', x:'Прогрес за кожною категорією та нагороди, що відкриваються самі. Ще нижче — «Стрічка досягнень» з усіма виконаними задачами та датами.'},
@@ -1549,7 +1553,7 @@ function tutorialSlides(){
     {e:'💌', t:'Листи від себе', l:'Напиши собі теплі слова в Налаштуваннях: «Пишаюся тобою», «Ти впораєшся».',
       li:[['🔁','Вони чергуються зі стандартною похвалою'],['💛','Найкраща підтримка — твоя власна']]},
     {e:'📝', t:'Підсумок дня о 21:00', l:'Щовечора приходить сповіщення <b>«Час прописати задачі, які були сьогодні виконані тобою»</b>.',
-      li:[['☑️','Відмічай виконані задачі та кроки з 10 найближчих'],['🎤','Або розкажи голосом — ШІ відмітить сам'],['＋','Додавай нові кроки прямо там і одразу відмічай їх'],['🆕','Записуй справи, яких не було в списку'],['💛','Застосунок лагідно відзначить усе, що тобі вдалося']]},
+      li:[['☑️','Відмічай виконані задачі та кроки з 10 найближчих'],['🎤','Або розкажи голосом — ШІ відмітить сам'],['＋','Додавай нові кроки прямо там і одразу відмічай їх'],['🆕','Записуй справи, яких не було в списку, — тут же можна створити нову категорію'],['💛','Застосунок лагідно відзначить усе, що тобі вдалося']]},
     {e:'🌿', t:'День відпочинку', l:`Не кожен день має бути продуктивним. У підсумку дня натисни «${G3('Сьогодні відпочивав','Сьогодні відпочивала','Сьогодні відпочивав(-ла)')}».`,
       li:[['🍵','Отримаєш теплу фразу замість відчуття, що день пропав'],['📈','Дні відпочинку рахуються в «Досягненнях», бо це теж турбота про себе']]},
     {e:'🗓', t:'Перепланувати', l:'Якщо дедлайн минув, це не провал, а лише привід обрати нову дату.',
